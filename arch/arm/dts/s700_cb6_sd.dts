@@ -13,7 +13,7 @@
 	compatible = "actions,s700_upgrade", "actions,s700";
 
 	chosen {
-		stdout-path = &serial5;
+		stdout-path = &serial3;
 	};
 
 	clock:e0168000 {

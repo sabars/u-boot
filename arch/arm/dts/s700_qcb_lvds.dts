@@ -91,40 +91,60 @@
 				regulator-always-on;
 			};
 		};
-		atc2603c_irkey {
-			compatible = "actions,atc2603c-ir";
-			config {
-				protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
-				customer_code = <0x0dff40>;
-				wk_code = <0x4d>;
-				keymapsize = <45>;
-				ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
-				key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
-			};
-			config-1 {
-				protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
-				customer_code = <0x0dff40>;
-				wk_code = <0x4d>;
-				keymapsize = <45>;
-				ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
-				key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
-			};
+
+		atc2603c-battery{
+			compatible = "actions,atc2603c-battery";
+			capacity = <2000>;/*unit:mAh*/
+			shutdown_current = <50>;/*unit:ua*/
+		};
+		atc2603c-charger{
+			compatible = "actions,atc2603c-charger";
+			rsense = <20>;/*unit:mohm*/
+			support_adaptor_type = <3>; /*1: DCIN  2: USB  3:DCIN+USB*/
+			usb_pc_ctl_mode = <1>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
+
 		};
 
 		};
 	};
 
 	i2c3: i2c@e017c000 {
+		clock-frequency = <90000>;
 		hdmi_edid {
 			compatible = "actions,hdmi-edid";
 		};
 	};
 
+	hdmi@e02c0000 {
+		channel_invert = <1>;
+		bit_invert = <0>;
+
+		panel@ghp {
+			compatible = "actions,panel-ghp";
+
+			is_primary = <0>;
+
+			draw_width = <1920>;
+			draw_height = <1080>;
+
+			videomode-0 = <&default_mode>;
+
+			/* default mode used when EDID read error */
+			default_mode: videomode {
+				refresh_rate = <60>;
+
+				xres = <1280>;
+				yres = <720>;
+			};
+		};
+	};
+
+
 	backlight {
 		compatible = "actions,s700-pwm-backlight";
 
-		/* GPIOD28, active high */
-		en-gpios = <&gpiod 28 1>;
+		/* GPIOA20, active high */
+		en-gpios = <&gpiob 2 0>;
 
 		/*1.pwm num; 2. period in ns; */
 		/*3.plarity, 0: high active, 1: low active*/
@@ -142,18 +162,21 @@
 	lcd: lcd@e02a0000 {
 
 		panel_configs = <&config0>;
-
-		/* 1280x800p60 */
+		/*
+		 * lcd_configs, used to configure lcd controller,
+		 * its values should set according to lcd panel's spec.
+		 * Currently, the configration is for fpga panel.
+		 */
 		config0: lcd_configs {
-			port_type = <0>;	/* 0, RGB; 1, CPU; 2, LVDS; 3, EDP */
+			port_type = <2>;	/* 0, RGB; 1, CPU; 2, LVDS; 3, EDP */
 
 			vsync_inversion = <0>;
 			hsync_inversion = <0>;
-			dclk_inversion = <0>;
+			dclk_inversion = <1>;
 			lde_inversion = <0>;
 
 			pclk_parent = <0>;	/* 0, DISPLAY PLL; 1, NAND PLL */
-			pclk_rate = <60000000>;/* 72MHz, DISPLAY PLL, divider 10 */
+			pclk_rate = <72000000>;/* 72MHz, DISPLAY PLL, divider 10 */
 		};
 
 		/* lcd panel */
@@ -173,43 +196,33 @@
 			enable_delay = <0>;
 			disable_delay = <0>;
 
-	power-gpio = <&gpiob 4 0>;		/* GPIOD30, high power on */
+			power-gpio = <&gpiob 4 0>;/* GPIOA23, high power on */
 
 			videomode-0 = <&mode0>;
-			/* 800 * 1280p60 */
+
+			/* 800x1280p60 */
 			mode0: videomode {
 				refresh_rate = <60>;
-				xres = <1024>;
-				yres = <600>;
+
+				xres = <800>;
+				yres = <1280>;
 				/*
 				 * pclk_rate = 66M
 				 * pixel_clock = picoseconds / pclk_rate
 				 */
-				pixel_clock = <20000>;
+				pixel_clock = <15152>;
 
-				hsw = <20>;
-				hbp = <138>;
-				hfp = <162>;
+				hsw = <12>;
+				hbp = <20>;
+				hfp = <40>;
 
-				vsw = <3>;
-				vbp = <22>;
-				vfp = <10>;
+				vsw = <2>;
+				vbp = <10>;
+				vfp = <33>;
 
 				/* 0: FB_VMODE_NONINTERLACED, 1:FB_VMODE_INTERLACED */
 				vmode = <0>;
 			};
-		};
-	};
-
-	hdmi@e02c0000 {
-		channel_invert = <0>;
-		bit_invert = <0>;
-
-		panel@ghp {
-			compatible = "actions,panel-ghp";
-
-			is_primary = <0>;
-
 		};
 	};
 

@@ -26,6 +26,10 @@
 #include <dss.h>
 #include "lcdc.h"
 
+#define mfp0 0xe01b0040
+#define mfp1 0xe01b0044
+#define mfp2 0xe01b0048
+
 enum lcd_port_type {
 	LCD_PORT_TYPE_RGB = 0,
 	LCD_PORT_TYPE_CPU,
@@ -397,8 +401,22 @@ int owl_lcdc_init(const void *blob)
 {
 	int ret = 0;
 	int node;
+	int tmp,tmp1,tmp2;
 
 	struct lcdc_data *lcdc;
+	
+
+ 	tmp = readl(mfp0);
+ 	tmp |=0x4<<23; 
+	writel(tmp,mfp0);
+	
+	tmp1 = readl(mfp1);
+ 	tmp1 |=(0x4<<11)|(0x3<<12)|(0x3<<10)|(0x3<<5); 
+	writel(tmp1,mfp1);
+	
+	tmp2 = readl(mfp2);
+ 	tmp2 |=(0x3<<29)|(0x3<<27); 
+	writel(tmp2,mfp2);
 
 	/* DTS match */
 	node = fdt_node_offset_by_compatible(blob, 0, "actions,s900-lcd");

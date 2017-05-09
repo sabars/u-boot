@@ -4,12 +4,12 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifndef __CONFIG_S700_EVB_H__
-#define __CONFIG_S700_EVB_H__
+#ifndef __CONFIG_S700_QCB_H__
+#define __CONFIG_S700_QCB_H__
 
 #include "s700_common.h"
 
-#define CONFIG_IDENT_STRING	 "S700 EVB"
+#define CONFIG_IDENT_STRING	 "S700 QCB"
 
 #define CONFIG_EXTRA_ENV_SETTINGS	CONFIG_EXTRA_ENV_SETTINGS_COMMON \
 					"devif=mmc\0" \
@@ -21,13 +21,22 @@
 #define CONFIG_PWM_OWL
 
 #define CONFIG_BOOTDEV_AUTO
+
+/*CHARGER*/
+#define CONFIG_POWER_CHARGER
+#define CONFIG_ATC260X_CHARGER
+#define CONFIG_ATC2603C_CHARGER
+/*BATTERY*/
+#define CONFIG_POWER_BATTERY
+#define CONFIG_POWER_BATTERY_ATC260X
+#define CONFIG_POWER_BATTERY_ATC2603C
 /* video support */
 #define CONFIG_VIDEO
 #define CONFIG_VIDEO_OWL
 #define CONFIG_VIDEO_OWL_DE_S700
 #define CONFIG_VIDEO_OWL_DSI
-#define CONFIG_VIDEO_OWL_HDMI
 #define CONFIG_VIDEO_OWL_LCD
+#define CONFIG_VIDEO_OWL_HDMI
 
 #define CONFIG_CFB_CONSOLE
 #define CONFIG_VGA_AS_SINGLE_DEVICE
@@ -93,6 +102,8 @@
 #define CONFIG_LIB_RAND
 #define CONFIG_NET_RANDOM_ETHADDR
 
+#define CONFIG_BOARD_LATE_INIT
+
 #define CONFIG_CMD_LINK_LOCAL
 #define CONFIG_CMD_PING
 
@@ -109,9 +120,10 @@
 /* support enter android recovery */
 #define CONFIG_ANDROID_RECOVERY
 #define ANDROID_RECOVERY_PART                "2"
+#define ANDROID_MISC_PART                    "1"
 #define ANDROID_CACHE_PART                   "6"
 #define ANDROID_DATA_PART                    "5"
 
 /* support ir key */
 #define CONFIG_ATC260X_IRKEY
-#endif /* __CONFIG_S700_EVB_H__ */
+#endif /* __CONFIG_S700_QCB_H__ */
