@@ -66,6 +66,18 @@
 /*3= */
 #define MFP0_18_16_F(x) (x<<16)
 
+/*
+ * lcd0
+ * */
+#define MFP0_25_23_F(x) (x<<23)
+#define MFP1_16_14_F(x) (x<<14)
+#define MFP1_22_21_F(x) (x<<21)
+#define MFP1_13_12_F(x) (x<<12)
+#define MFP1_11_10_F(x) (x<<10)
+#define MFP1_6_5_F(x) 	(x<<5)
+#define MFP2_28_27_F(x) (x<<27)
+#define MFP2_30_29_F(x) (x<<29)
+
 /*0= */
 /*1= */
 /*2= */
@@ -74,6 +86,7 @@
 /*5= */
 #define MFP1_31_29_F(x) (x<<29)
 #define MFP1_28_26_F(x) (x<<26)
+
 #define MFP3_27_F(x) (x<<27)
 
 #define MFP2_6_5_F(x) (x<<5)
@@ -227,6 +240,65 @@ static const struct device_mfp_config s700_mmc2_cfg = {
 	},
 };
 
+static const struct device_mfp_config s700_lcd_cfg = {
+	.periph_id = PERIPH_ID_LCD,
+	.mfp_cfg = {
+		{
+			.mfp = 0,
+			.reg_cfg = {
+				{MFP_CTL0, MFP0_25_23_F(7), MFP0_25_23_F(4)},/* LCD0_D18 */
+				{MFP_CTL1, MFP1_22_21_F(3), MFP1_22_21_F(2)},/* LCD0_DCLK0
+									      * LCD0_HSYNC0
+									      * LCD0_VSYNC0
+									      * LCD0_LDE0
+									      * LCD0_D23
+									      * LCD0_D22
+									      * LCD0_D21
+									      * LCD0_D20
+									      * LCD0_D19
+									      * LCD0_D15
+									      */
+				{MFP_CTL1, MFP1_16_14_F(7), MFP1_16_14_F(4)},/* LCD0_D2 */
+				{MFP_CTL1, MFP1_13_12_F(3), MFP1_13_12_F(3)},/* LCD0_D16 */
+				{MFP_CTL1, MFP1_11_10_F(3), MFP1_11_10_F(3)},/* LCD0_D9 */
+				{MFP_CTL1, MFP1_6_5_F(3), MFP1_6_5_F(3)},  /* LCD0_D14
+									      * LCD0_D13
+									      */
+				{MFP_CTL2, MFP2_30_29_F(3), MFP2_30_29_F(2)},/* LCD0_D17
+									      * LCD0_D8
+									      * LCD0_D1
+									      * LCD0_D0
+									      */
+				{MFP_CTL2, MFP2_28_27_F(3), MFP2_28_27_F(2)},/* LCD0_D12
+									      * LCD0_D11
+									      * LCD0_D10
+									      * LCD0_D7
+									      * LCD0_D6
+									      * LCD0_D5
+									      * LCD0_D4
+									      * LCD0_D3
+									      */
+
+			},
+		},
+	},
+};
+
+
+static const struct device_mfp_config s700_lvds_cfg = {
+	.periph_id = PERIPH_ID_LVDS,
+	.mfp_cfg = {
+		{
+			.mfp = 0,
+			.reg_cfg = {
+				{MFP_CTL1, MFP1_22_21_F(3), MFP1_22_21_F(0)},
+				{MFP_CTL1, MFP1_6_5_F(3), MFP1_6_5_F(0)},
+				{MFP_CTL2, MFP2_28_27_F(3), MFP2_28_27_F(0)},
+			},
+		},
+	},
+};
+
 static const struct device_mfp_config *s700_dev_cfg[] = {
 	&s700_uart0_cfg,
 	&s700_i2c3_cfg,
@@ -234,6 +306,8 @@ static const struct device_mfp_config *s700_dev_cfg[] = {
 	&s700_pwm2_cfg,
 	&s700_mmc0_cfg,
 	&s700_mmc2_cfg,
+	&s700_lcd_cfg,
+	&s700_lvds_cfg,
 	NULL,
 
 };

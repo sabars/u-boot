@@ -31,9 +31,20 @@
 #include <asm/arch/clk.h>
 #include <asm/arch/reset.h>
 #include <asm/arch/periph.h>
+#include <asm/arch/dma.h>
 #include <dss.h>
 
 #include "dsic.h"
+
+/*
+ * mipi dsi low-power rx status
+ * */
+enum dsi_transfer_state {
+	RX_TRIGGER		= 15,
+	RX_ACK_AND_ERRO_PACK	= 16,
+	RX_DAT_DONE		= 17,
+
+};
 
 #define LONG_CMD_MODE		0x39
 #define DATE_TYPE_NO_PAR	0x05
@@ -76,6 +87,8 @@ struct dsic_data {
 	uint32_t			hsclk_pll;/* dsi pll clk */
 
 	struct dsic_init_cmd		*cmd;
+	struct owl_dma_dev		*dma_channel;
+	u32				dma_irq;/* DSI Controller DMA IRQ */
 
 	struct owl_display_ctrl		*ctrl;
 
@@ -88,6 +101,7 @@ struct dsic_data {
 #define dsic_writel(dsic, index, val) writel((val), dsic->base + (index))
 #define dsic_readl(dsic, index) readl(dsic->base + (index))
 
+#define calc_align(n, align) ((n + align - 1) & (~(align - 1)))
 
 static int dsic_parse_config(void *blob, int node, struct dsic_data *dsic)
 {
@@ -146,35 +160,116 @@ static int dsic_parse_config(void *blob, int node, struct dsic_data *dsic)
 
 	return 0;
 }
-
-static void dsic_send_short_packet(struct dsic_data *dsic, int data_type,
-					int sp_data, int trans_mode)
+static void send_normal_long_packet(struct dsic_data *dsic, uint8_t data_type,
+					int data_len, uint8_t *send_data,
+					int trans_mode)
 {
-	int tmp;
+	uint32_t reg_val, tmp, wait_times;
+	int i, ret, len;
+
+	debug("%s, data_type 0x%x, n_data  %d\n",
+			__func__, data_type, data_len);
+
+	for (i = 0; i < data_len; i++)
+		debug(" 0x%x\n", send_data[i]);
+
+	/* change to command mode */
+	tmp = dsic_readl(dsic, DSI_CTRL);
+	tmp &= 0xffffefff;
+	dsic_writel(dsic, DSI_CTRL, tmp);
+
+	flush_dcache_all();
+	dsic->dma_irq = DMA_DRQ_DSI_TX;
+	owl_dma_stop(dsic->dma_channel);
+
+	/* Word alignment is required */
+	len = calc_align(data_len, 4);
+	debug("alignment len %d\n", len);
+
+	ret = owl_dma_config(dsic->dma_channel,
+			dsic->dma_irq,
+			send_data,
+			dsic->base + DSI_FIFO_ODAT,
+			len, 0);
+	if (ret != 0)
+		printf("owl dma config error %d\n", ret);
+
+	dsic_writel(dsic, DSI_PACK_HEADER, len);
+	tmp = data_type << 8;
+	tmp |= trans_mode << 14;
+	tmp |= 0x01 << 18; /* long packet */
+	dsic_writel(dsic, DSI_PACK_CFG, tmp);
+	mdelay(10);
+
+	/* start dma transmission*/
+	owl_dma_start(dsic->dma_channel);
+
+	/* start dsi packet transmission */
+	tmp = dsic_readl(dsic, DSI_PACK_CFG);
+	tmp |= 0x1;
+	dsic_writel(dsic, DSI_PACK_CFG, tmp);
+
+	/* waiting for transmitting Complete */
+	wait_times = 10;
+	do {
+		reg_val = dsic_readl(dsic, DSI_TR_STA);
+		if (((reg_val >> 19) & 0x1) == 1)
+			break;
+		mdelay(1);
+	} while (--wait_times);
+	if (wait_times <= 0)
+		printf("%s, long cmd transmission timout!\n", __func__);
+
+	if (owl_dma_wait_finished(dsic->dma_channel, 1000))
+		printf("%s, wait dma finished timeout!\n", __func__);
+
+	/* Clear TCIP */
+	dsic_writel(dsic, DSI_TR_STA, 0x80000);
+	dsic_writel(dsic, DSI_TR_STA, 0xfff);
+}
+
+static void dsic_send_short_packet(struct dsic_data *dsic, uint8_t data_type,
+					uint32_t *sp_data, int trans_mode)
+{
+	uint32_t reg_val, wait_times;
 
 	/*
 	 * DSI_CTRL register bit 6 must 0, no-continue clk,
 	 * between mode transmit
 	 * TODO
 	 * */
-	tmp = dsic_readl(dsic, DSI_CTRL);
-	tmp &= 0xffffefff;
-	dsic_writel(dsic, DSI_CTRL, tmp);
+	debug("%s, data_type 0x%x, sp_data 0x%x\n",
+		__func__, data_type, *sp_data);
 
-	dsic_writel(dsic, DSI_PACK_HEADER, sp_data);
+	reg_val = dsic_readl(dsic, DSI_CTRL);
+	reg_val &= 0xffffefff;
+	dsic_writel(dsic, DSI_CTRL, reg_val);
 
-	tmp = (data_type << 8) | (trans_mode << 14);
-	dsic_writel(dsic, DSI_PACK_CFG, tmp);
+	dsic_writel(dsic, DSI_PACK_HEADER, *sp_data);
+
+	reg_val = (data_type << 8) | (trans_mode << 14);
+	dsic_writel(dsic, DSI_PACK_CFG, reg_val);
 	mdelay(1);
 
-	tmp = dsic_readl(dsic, DSI_PACK_CFG);
-	tmp |= 1;
-	dsic_writel(dsic, DSI_PACK_CFG, tmp);
+	/* start dsi packet transmission */
+	reg_val = dsic_readl(dsic, DSI_PACK_CFG);
+	reg_val |= 1;
+	dsic_writel(dsic, DSI_PACK_CFG, reg_val);
+
+	/* waiting for transmitting Complete */
+	wait_times = 10;
 	do {
-		tmp = dsic_readl(dsic, DSI_TR_STA);
-	} while (!(tmp & 0x80000));
+		reg_val = dsic_readl(dsic, DSI_TR_STA);
+		if (((reg_val >> 19) & 0x1) == 1)
+			break;
+		mdelay(1);
+	} while (--wait_times);
+	if (wait_times <= 0)
+		printf("%s, short cmd transmission timout!\n", __func__);
+
 	dsic_writel(dsic, DSI_TR_STA, 0x80000);
 }
+
 static uint32_t dsic_get_hsclk(struct dsic_data *dsic, uint16_t vtotal)
 {
 	uint16_t pixel2pro = 1;
@@ -801,6 +896,190 @@ static void dsic_init(struct dsic_data *dsic)
 	dsic_single_enable(dsic, true);
 }
 
+static int bta_test_init(struct dsic_data *dsic)
+{
+	debug("%s, start\n", __func__);
+	int wait_times;
+	uint32_t reg_val;
+
+	/* set to command mode and no continue clock */
+	reg_val = dsic_readl(dsic, DSI_CTRL);
+	reg_val &= 0xffffefbf;
+	dsic_writel(dsic, DSI_CTRL, reg_val);
+
+	/* soft reset RX FIFO */
+	reg_val = dsic_readl(dsic, DSI_CTRL);
+	reg_val |= 1 << 3;
+	dsic_writel(dsic, DSI_CTRL, reg_val);
+
+	/* wait Input FIFO Empty Flag */
+	debug("%s, wait input fifo empty\n", __func__);
+	wait_times = 10;
+	do {
+		reg_val = dsic_readl(dsic, DSI_TR_STA);
+		if ((reg_val & (1 << 8)) != 0)
+			break;
+		mdelay(1);
+	} while (--wait_times);
+	if (wait_times <= 0) {
+		printf("%s, wait input fifo empty timeout\n", __func__);
+		return -1;
+	}
+
+	/* end RX FIFO Reset */
+	reg_val = dsic_readl(dsic, DSI_CTRL);
+	reg_val &= ~(1 << 3);
+	dsic_writel(dsic, DSI_CTRL, reg_val);
+
+	/* clear Error */
+	reg_val = dsic_readl(dsic, DSI_TR_STA);
+	reg_val |= 0xff;
+	dsic_writel(dsic, DSI_TR_STA, reg_val);
+
+	/* set BTA timeout */
+	dsic_writel(dsic, DSI_TIMEOUT, 0x1000);
+
+	debug("%s, end\n", __func__);
+
+	return 0;
+}
+
+static int bta_test_waiting_turn_over(struct dsic_data *dsic)
+{
+	int wait_times;
+	uint32_t reg_val, tmp;
+
+	debug("%s, start\n", __func__);
+
+	/* force Data lane0 into BTA mode */
+	tmp = dsic_readl(dsic, DSI_LANE_CTRL);
+	tmp |= 0x1;
+	dsic_writel(dsic, DSI_LANE_CTRL, tmp);
+
+	/* judge if BTA turn over */
+	wait_times = 10;
+	do {
+		reg_val = dsic_readl(dsic, DSI_TR_STA);
+		if ((reg_val & 0x00040000) != 0)
+			break;
+		mdelay(1);
+	} while (--wait_times);
+	if (wait_times <= 0) {
+		printf("%s, timeout\n", __func__);
+		return -1;
+	}
+
+	/* clear BTA interrupt pending */
+	dsic_writel(dsic, DSI_TR_STA, 0x00040000);
+
+	debug("%s, end\n", __func__);
+	return 0;
+}
+
+static enum dsi_transfer_state bta_test_received_mode(struct dsic_data *dsic)
+{
+	unsigned char rx_datatype, rx_dataid, rx_word_cnt, rx_trigger;
+	int i;
+	uint32_t tmp;
+
+	/* bit17 Rx_Data_Done */
+	if (dsic_readl(dsic, DSI_TR_STA) & 0x00020000) {
+
+		/* clear Rx_Data_Done interrupt pending */
+		tmp = dsic_readl(dsic, DSI_TR_STA);
+		tmp |= 1 << RX_DAT_DONE;
+		dsic_writel(dsic, DSI_TR_STA, tmp);
+
+		debug("DSI_IPACK 0x%x\n", dsic_readl(dsic, DSI_IPACK));
+		/*
+		 * get Input Packet Type, bit 24
+		 * 0:short packet; 1: long packet
+		 */
+		rx_datatype = (dsic_readl(dsic, DSI_IPACK) >> 24) & 0x1;
+		rx_dataid = (dsic_readl(dsic, DSI_IPACK) >> 16) & 0xff;
+		rx_word_cnt = dsic_readl(dsic, DSI_IPACK) & 0xffff;
+		debug("%s, rx_datatype %d, rx_dataid %d, rx_word_cnt %d\n",
+				__func__, rx_datatype, rx_dataid, rx_word_cnt);
+
+		for (i = 0; i <= rx_word_cnt; i++) {
+			printf("DSI_FIFO_IDAT 0x%x\n", dsic_readl(dsic, DSI_FIFO_IDAT));
+		}
+
+		return RX_DAT_DONE;
+	}
+
+	/* bit16 Rx_ACK_Packet */
+	if (dsic_readl(dsic, DSI_TR_STA) & 0x00010000) {
+
+		/* clear Rx_ACK_Packet interrupt pending */
+		tmp = dsic_readl(dsic, DSI_TR_STA);
+		tmp |= 1 << RX_ACK_AND_ERRO_PACK;
+		dsic_writel(dsic, DSI_TR_STA, tmp);
+		return RX_ACK_AND_ERRO_PACK;
+	}
+
+	/* bit15 Rx_Trigger */
+	if (dsic_readl(dsic, DSI_TR_STA) & 0x00008000) {
+
+		/* clear Rx_Trigger interrupt pending */
+		tmp = dsic_readl(dsic, DSI_TR_STA);
+		tmp |= 1 << RX_TRIGGER;
+		dsic_writel(dsic, DSI_TR_STA, tmp);
+
+		rx_trigger = dsic_readl(dsic, DSI_RX_TRIGGER);
+		printf("rx_trigger 0x%x\n", rx_trigger);
+		return RX_TRIGGER;
+	}
+
+	return -1;
+}
+
+/*
+ * Not: this function is used to test whether the communication is normal
+ * between dsi controller and panel.
+ * */
+static int owl_dsi_bta_test(struct dsic_data *dsic)
+{
+	int ret;
+	enum dsi_transfer_state dsi_bta_resault;
+	uint32_t get_pixel_format = 0x000c;
+
+	/*
+	 * before dsi BTA, need send mipi read command
+	 * in HP mode
+	 * */
+	dsic_send_short_packet(dsic, 0x06, &get_pixel_format, 0);
+
+	ret = bta_test_init(dsic);
+	if (ret < 0) {
+		printf("%s, bta test init failed\n", __func__);
+		return -1;
+	}
+
+	ret = bta_test_waiting_turn_over(dsic);
+	if (ret < 0) {
+		printf("%s, bta test waiting turn over failed\n", __func__);
+		return -1;
+	}
+
+	dsi_bta_resault = bta_test_received_mode(dsic);
+	switch (dsi_bta_resault) {
+	case RX_TRIGGER:
+		debug("%s, rx trigger\n", __func__);
+		break;
+	case RX_ACK_AND_ERRO_PACK:
+		debug("%s error, dsi ctrl need to re-enable!\n", __func__);
+		break;
+	case RX_DAT_DONE:
+		debug("%s, rx data done\n", __func__);
+		break;
+
+	default:
+		return -1;
+	}
+
+	return 0;
+}
 
 int owl_dsic_enable(struct owl_display_ctrl *ctrl)
 {
@@ -848,40 +1127,49 @@ int owl_dsic_aux_read(struct owl_display_ctrl *ctrl, char *buf, int count)
 }
 
 /*
- * command buffer[i] format:
- * 	bit 31:24---> parameters
- * 	bit 23:16---> DCS
- * 	bit 15:8----> data type
- * 	bit 7:0-----> cmd delay
- * */
-int owl_dsic_aux_write(struct owl_display_ctrl *ctrl, const char *buf, int count)
+ * command buffer format:
+ * 	buffer 4 ~ (MIPI_MAX_PARS - 1) ---> parameters
+ * 	buffer 3---> address
+ * 	buffer 2---> number of parameters
+ * 	buffer 1---> dcs data type
+ * 	buffer 0---> cmd delay
+ *
+ */
+int owl_dsic_aux_write(struct owl_display_ctrl *ctrl,
+			const char *buf, int count)
 {
 	struct dsic_data *dsic = owl_ctrl_get_drvdata(ctrl);
 	int trans_mode = 1;
-	int i;
 	uint8_t data_type, cmd_delay;
-	uint16_t data_command;
-	uint32_t *buffer = buf;
+	uint8_t *buffer = buf;
 
-	debug("%s, cmd_nums %d\n", __func__, count);
-	if (buffer != NULL && count > 0) {
-		for (i = 0; i < count; i++) {
-			/* get command data type and cmd_delay */
-			data_command = (buffer[i] >> 16) & 0xffff;
-			data_type = (buffer[i] >> 8) & 0xff;
-			cmd_delay = buffer[i] & 0xff;
+	uint8_t *data, n_data;
 
-			debug("mipi cmd parse: 0x%x data_type:%x delay:%d\n",
-				data_command, data_type, cmd_delay);
+	cmd_delay = buffer[0];
+	data_type = buffer[1];
+	n_data = buffer[2] + 1;
+	data = &buffer[3];
 
-			/* mipi initial command send by short packet TODO*/
-			dsic_send_short_packet(dsic, data_type,
-						data_command, trans_mode);
-			if (cmd_delay > 0)
-				mdelay(cmd_delay);
-		}
+	switch (data_type) {
+	case MIPI_DSI_GENERIC_LONG_WRITE:
+	case MIPI_DSI_DCS_LONG_WRITE:
+		send_normal_long_packet(dsic, data_type,
+					n_data, data, trans_mode);
+		break;
+
+	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
+	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
+	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
+	case MIPI_DSI_DCS_SHORT_WRITE:
+	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		dsic_send_short_packet(dsic, data_type,
+					(uint32_t*)data, trans_mode);
+		break;
+	default:
+		return -1;
 	}
 
+	mdelay(cmd_delay);
 	return 0;
 }
 struct owl_display_ctrl_ops owl_dsi_ctrl_ops = {
@@ -932,6 +1220,12 @@ int owl_dsic_init(const void *blob)
 		}
 	}
 	debug("%s, ic_type = %d\n", __func__, dsic->diffs.id);
+
+	dsic->dma_channel = owl_dma_request();
+	if (!dsic->dma_channel) {
+		error("%s, owl_dma_request failed!\n", __func__);
+		return -1;
+	}
 
 	dsic->base = fdtdec_get_addr(blob, node, "reg");
 	if (dsic->base == FDT_ADDR_T_NONE) {

@@ -220,22 +220,28 @@ static u32 CONFIG_TABLE[][3] = {
 /* REG		MASK		VAULE*/
 #ifdef CONFIG_DM_PMIC_ATC2603C
 {ATC2603C_RTC_CTL, 0x0020, 0x0020},	/* enable external osc */
+{ATC2603C_IRC_CTL, 0x0008, 0x0000},   /*IRC disable to clear IR_KDC */
+{ATC2603C_IRC_CTL, 0x0008, 0x0008},   /*IRC enable*/
 {ATC2603C_IRC_WK, 0xffff, 0x0000},	/* wake up key data code,value will be changed by cfg item */
-{ATC2603C_IRC_CTL, 0xffff, 0x000d},	/* enable IR,enable IRQ,IRC code mode */
+{ATC2603C_IRC_CTL, 0x0003, 0x0001},	/* enable IR,enable IRQ,IRC code mode */
 {ATC2603C_IRC_CC, 0xffff, 0x0000},	/* customer code,will be changed by cfg item*/
 {ATC2603C_PMU_MUX_CTL0, 0x3000, 0x1000},/* ADC channel SGPIO5*/
 {ATC2603C_PMU_SYS_CTL0, 0x0020, 0x0020},/* IR_WK_EN */
 {ATC2603C_INTS_MSK, 0x0100, 0x0100},	/* IR interrupt Mask bit*/
-{ATC2603C_PAD_EN, 0x0001, 0x0001}	/* enable external IRQ*/
+{ATC2603C_PAD_EN, 0x0001, 0x0001},	/* enable external IRQ*/
+{ATC2603C_IRC_CTL, 0x0004, 0x0004},   /*IRC enable*/
 #elif CONFIG_DM_PMIC_ATC2609A
-{ATC2609A_RTC_CTL, 0x0020, 0x0020},
-{ATC2609A_IRC_WK, 0xffff, 0x0000},
-{ATC2609A_IRC_CTL, 0xffff, 0x000d},
-{ATC2609A_IRC_CC, 0xffff, 0x0000},
-{ATC2609A_PMU_SYS_CTL4, 0x301C, 0x000C},
-{ATC2609A_PMU_SYS_CTL0, 0x0020, 0x0020},
-{ATC2609A_INTS_MSK, 0x0100, 0x0100},
-{ATC2609A_PAD_EN, 0x0001, 0x0001}
+{ATC2603C_RTC_CTL, 0x0020, 0x0020},     /* enable external osc */
+{ATC2603C_IRC_CTL, 0x0008, 0x0000},   /*IRC disable to clear IR_KDC */
+{ATC2603C_IRC_CTL, 0x0008, 0x0008},   /*IRC enable*/
+{ATC2603C_IRC_WK, 0xffff, 0x0000},      /* wake up key data code,value will be changed by cfg item */
+{ATC2603C_IRC_CTL, 0x0003, 0x0001},     /* enable IR,enable IRQ,IRC code mode */
+{ATC2603C_IRC_CC, 0xffff, 0x0000},      /* customer code,will be changed by cfg item*/
+{ATC2603C_PMU_MUX_CTL0, 0x3000, 0x1000},/* ADC channel SGPIO5*/
+{ATC2603C_PMU_SYS_CTL0, 0x0020, 0x0020},/* IR_WK_EN */
+{ATC2603C_INTS_MSK, 0x0100, 0x0100},    /* IR interrupt Mask bit*/
+{ATC2603C_PAD_EN, 0x0001, 0x0001},      /* enable external IRQ*/
+{ATC2603C_IRC_CTL, 0x0004, 0x0004},   /*IRC enable*/
 #endif
 };
 
@@ -244,23 +250,23 @@ static void irkey_init(void)
 	int i;
 	switch(irkey.proto) {
 	case IR_PROTOCOL_9012:
-		CONFIG_TABLE[1][2] = irkey.wk_code & 0x00ff;
-		CONFIG_TABLE[2][2] = 0x000c;
-		CONFIG_TABLE[3][2] = irkey.customer_code;
+		CONFIG_TABLE[3][2] = ((~irkey.wk_code) << 8) | (irkey.wk_code);
+		CONFIG_TABLE[4][2] = 0x0000;
+		CONFIG_TABLE[5][2] = irkey.customer_code;
 	break;
 	case IR_PROTOCOL_NEC8:
-		CONFIG_TABLE[1][2] = irkey.wk_code & 0x00ff;
-		CONFIG_TABLE[2][2] = 0x000d;
-		CONFIG_TABLE[3][2] = irkey.customer_code;
+		CONFIG_TABLE[3][2] = ((~irkey.wk_code) << 8) | (irkey.wk_code);
+		CONFIG_TABLE[4][2] = 0x0001;
+		CONFIG_TABLE[5][2] = irkey.customer_code;
 	break;
 	case IR_PROTOCOL_RC5:
-		CONFIG_TABLE[1][2] = irkey.wk_code & 0x003f;
-		CONFIG_TABLE[2][2] = 0x000e;
-		CONFIG_TABLE[3][2] = irkey.customer_code & 0x001f;
+		CONFIG_TABLE[3][2] = irkey.wk_code & 0x003f;
+		CONFIG_TABLE[4][2] = 0x0002;
+		CONFIG_TABLE[5][2] = irkey.customer_code & 0x001f;
 	break;
 	default: break;
 	}
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 11; i++)
 		atc260x_set_bits(CONFIG_TABLE[i][0],
 						CONFIG_TABLE[i][1],
 						CONFIG_TABLE[i][2]);
@@ -282,7 +288,7 @@ int atc260x_irkey_scan()
 
 	irc_stat = atc260x_reg_read(IRC_STAT);
 	printf("irc_stat:%x\n",irc_stat);
-	if (!(irc_stat & IRC_STAT_IREP))
+	if ((irc_stat & IRC_STAT_IREP))
 		return -1;
 
 	ret = irkey_cfg_get();
@@ -317,4 +323,5 @@ int atc260x_irkey_scan()
 
 	return keycode;
 }
+
 

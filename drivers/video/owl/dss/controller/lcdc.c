@@ -16,6 +16,7 @@
 #include <common.h>
 #include <libfdt.h>
 #include <fdtdec.h>
+#include <asm/arch/periph.h>
 
 #include <asm/io.h>
 
@@ -29,6 +30,8 @@
 #define mfp0 0xe01b0040
 #define mfp1 0xe01b0044
 #define mfp2 0xe01b0048
+
+#define LCD0CLK_DVI_MAX		12
 
 enum lcd_port_type {
 	LCD_PORT_TYPE_RGB = 0,
@@ -47,6 +50,13 @@ struct lcdc_config {
 
 	uint32_t		pclk_parent;
 	uint32_t		pclk_rate;
+
+	/* properties for lvds port */
+	uint32_t		lvds_format; 		/* 0: 18-bit; 1: 24-bit */
+	uint32_t		lvds_channel; 		/* 0: single channel; 1: dual channel */
+	uint32_t		lvds_bit_mapping; 	/* 0: NS Mode; 1: JEIDA Mode */
+	uint32_t		lvds_ch_swap;  		/* 0: No Swap; 1: Odd/Even Swap */
+	uint32_t		lvds_mirror;  		/* 0: normal; 1: mirror */
 };
 
 struct lcdc_data {
@@ -90,6 +100,18 @@ static int lcdc_parse_config(const void *blob, int node,
 	lcdc->configs.lde_inversion
 		= fdtdec_get_int(blob, entry, "lde_inversion", 0);
 
+	/* parse lvds port propertis */
+	lcdc->configs.lvds_format
+		= fdtdec_get_int(blob, entry, "lvds_format", 0);
+	lcdc->configs.lvds_channel
+		= fdtdec_get_int(blob, entry, "lvds_channel", 0);
+	lcdc->configs.lvds_bit_mapping
+		= fdtdec_get_int(blob, entry, "lvds_bit_mapping", 0);
+	lcdc->configs.lvds_ch_swap
+		= fdtdec_get_int(blob, entry, "lvds_ch_swap", 0);
+	lcdc->configs.lvds_mirror
+		= fdtdec_get_int(blob, entry, "lvds_mirror", 0);
+
 	lcdc->configs.pclk_parent
 		= fdtdec_get_int(blob, entry, "pclk_parent", 0);
 	lcdc->configs.pclk_rate
@@ -112,20 +134,38 @@ static int lcdc_parse_config(const void *blob, int node,
 	return 0;
 }
 
-static unsigned int lcdclk_get_divider(unsigned int parent_rate,
+/*
+ * lcdclk divider table,
+ * index is register value(0~11),
+ */
+#define DIV_ROUND(x, y) (((x) + ((y) / 2)) / y)
+#define DIVIDER_TABLE_LEN	(22)
+static unsigned int lcdclk_divider_table[DIVIDER_TABLE_LEN] = {
+	/* bit0 ~ 3 */
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+
+	/* bit8: /7 */
+	1*7, 2*7, 3*7, 4*7, 5*7, 6*7, 7*7, 8*7, 9*7, 10*7,
+};
+
+
+static  int lcdclk_get_divider(unsigned int parent_rate,
 				       unsigned int target_rate)
 {
-	unsigned int divider;
+	int i;
+	unsigned int rate;
 
-	divider = parent_rate / target_rate;
+	for (i = 0; i < DIVIDER_TABLE_LEN; i++) {
+		/* round */
+		rate = DIV_ROUND(parent_rate, lcdclk_divider_table[i]);
+		debug("rate %d, target_rate %d\n", rate, target_rate);
+		if (rate / 1000000 <= target_rate / 1000000)
+			break;
+	}
 
-	debug("%s: parent_rate %d, target_rate %d, divider %d\n",
-		__func__, parent_rate, target_rate, divider);
-
-	BUG_ON(divider * target_rate != parent_rate);
-	BUG_ON(divider > 32 || divider == 0);
-
-	return divider;
+	BUG_ON(i == DIVIDER_TABLE_LEN);
+	debug("divider = %d, rate = %d\n", i % 12, rate);
+	return i;
 }
 static unsigned int lcdc_get_display_pll(struct lcdc_data *lcdc)
 {
@@ -142,6 +182,7 @@ static unsigned int lcdc_get_display_pll(struct lcdc_data *lcdc)
 static void lcdc_clk_enable(struct lcdc_data *lcdc)
 {
 	unsigned int tmp, parent_clk;
+	unsigned int div;
 
 	debug("%s\n", __func__);
 
@@ -155,8 +196,10 @@ static void lcdc_clk_enable(struct lcdc_data *lcdc)
 	tmp = 0;
 	if (lcdc->configs.pclk_parent == 0) {	/* DISPLAY_PLL */
 		tmp |= (0 << 12);
-		tmp |= (lcdclk_get_divider(parent_clk * 1000000,
-				lcdc->configs.pclk_rate) - 1);
+		div = lcdclk_get_divider(parent_clk * 1000000,lcdc->configs.pclk_rate);
+		tmp |= div % LCD0CLK_DVI_MAX;
+		if (div > LCD0CLK_DVI_MAX)
+			tmp |= 1 << 8;
 	} else {
 		/* TODO */
 		BUG();
@@ -314,9 +357,20 @@ static void lcdc_lvds_port_enable(struct lcdc_data *lcdc, bool enable)
 		val = REG_SET_VAL(val, 0, 4, 5);
 		lcdc_writel(lcdc, LCDC_LVDS_ALG_CTL0, 0xc141a030);
 
+		/* FIXME */
+		lcdc_writel(lcdc, LCDC_LVDS_CTL, 0x000a9500);
+
+		val = lcdc_readl(lcdc, LCDC_LVDS_CTL);
+		val = REG_SET_VAL(val, lcdc->configs.lvds_mirror, 6, 6);
+		val = REG_SET_VAL(val, lcdc->configs.lvds_ch_swap, 5, 5);
+		val = REG_SET_VAL(val, lcdc->configs.lvds_bit_mapping, 4, 3);
+		val = REG_SET_VAL(val, lcdc->configs.lvds_channel, 2, 2);
+		val = REG_SET_VAL(val, lcdc->configs.lvds_format, 1, 1);
+		lcdc_writel(lcdc, LCDC_LVDS_CTL, val);
+
 		val = lcdc_readl(lcdc, LCDC_LVDS_CTL);
 		val = REG_SET_VAL(val, enable, 0, 0);
-		lcdc_writel(lcdc, LCDC_LVDS_CTL, 0x000a9521);
+		lcdc_writel(lcdc, LCDC_LVDS_CTL, val);
 	} else {
 		val = lcdc_readl(lcdc, LCDC_LVDS_ALG_CTL0);
 		val = REG_SET_VAL(val, 0, 30, 31);
@@ -405,19 +459,6 @@ int owl_lcdc_init(const void *blob)
 
 	struct lcdc_data *lcdc;
 	
-
- 	tmp = readl(mfp0);
- 	tmp |=0x4<<23; 
-	writel(tmp,mfp0);
-	
-	tmp1 = readl(mfp1);
- 	tmp1 |=(0x4<<11)|(0x3<<12)|(0x3<<10)|(0x3<<5); 
-	writel(tmp1,mfp1);
-	
-	tmp2 = readl(mfp2);
- 	tmp2 |=(0x3<<29)|(0x3<<27); 
-	writel(tmp2,mfp2);
-
 	/* DTS match */
 	node = fdt_node_offset_by_compatible(blob, 0, "actions,s900-lcd");
 	if (node < 0) {
@@ -438,6 +479,15 @@ int owl_lcdc_init(const void *blob)
 		return -1;
 	}
 	debug("%s: base is 0x%llx\n", __func__, lcdc->base);
+
+	if (lcdc->configs.port_type == LCD_PORT_TYPE_LVDS){
+		pinmux_select(PERIPH_ID_LVDS, 0);
+	} else if (lcdc->configs.port_type == LCD_PORT_TYPE_RGB) {
+		pinmux_select(PERIPH_ID_LCD, 0);
+	} else {
+		error("Unsupported port type\n");
+		return -1;
+	}
 
 	ret = lcdc_parse_config(blob, node, lcdc);
 	if (ret < 0)

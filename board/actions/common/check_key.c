@@ -18,9 +18,22 @@
 int owl_check_key(void)
 {
 	int key;
+	int onoff_shortpress_times;
+	
 
 	key = atc260x_adckey_scan();
 	printf("check_key: keycode=%d\n", key);
+
+       	if ( key != KEY_VOLUMEUP && key != KEY_VOLUMEDOWN ) {
+       		onoff_shortpress_times = count_onoff_short_press();
+        			
+       		if((onoff_shortpress_times >= 2) && (onoff_shortpress_times <= 3) )
+     			key = KEY_VOLUMEDOWN ;
+       		else if(onoff_shortpress_times >= 7)
+       			key = KEY_VOLUMEUP ;
+       		else if ((onoff_shortpress_times >= 4) && (onoff_shortpress_times <= 6))
+     			 return 0;
+       	}
 
 	/* if there is no any responding key pressing */
 	if (-1 == key)

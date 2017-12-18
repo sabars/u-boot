@@ -658,6 +658,7 @@ libs-y += drivers/usb/eth/
 libs-y += drivers/usb/gadget/
 libs-y += drivers/usb/gadget/udc/
 libs-y += drivers/usb/host/
+libs-y += drivers/usb/aotg/
 libs-y += drivers/usb/musb/
 libs-y += drivers/usb/musb-new/
 libs-y += drivers/usb/phy/

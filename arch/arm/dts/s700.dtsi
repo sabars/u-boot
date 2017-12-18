@@ -115,5 +115,15 @@
 	cvbs@e02b0000{
 		 compatible = "actions,s700-cvbs";
 		 reg = <0 0xe02b0000 0 0x80>;
-		 };
+	};
+
+	usb2h0: usb@e01d0000 {
+		compatible = "actions,owl-usb2.0-0";
+		reg = <0 0xe01d0000 0 0x1000>;
+	};
+
+	usb2h1: usb@e01d8000 {
+		compatible = "actions,owl-usb2.0-1";
+		reg = <0 0xe01d8000 0 0x1000>;
+	};
 };

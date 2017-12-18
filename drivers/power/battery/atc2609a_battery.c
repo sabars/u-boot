@@ -683,20 +683,39 @@ static unsigned int atc2609a_bat_chk_reason(void)
 	return clmt.reason;
 }
 
+static bool atc2609a_clmt_get_inited(void)
+{
+	int inited;
+
+	inited = atc260x_reg_read(ATC2609A_CLMT_CTL0) &
+		PMU_CLMT_CTL0_INIT_DATA_EN;
+
+	if (inited) {
+		printf("[%s]:clmt initialized\n", __func__);
+		return true;
+	} else {
+		printf("[%s]:CLMT not initialized\n", __func__);
+		return false;
+	}
+}
+
 static void atc2609a_clmt_init(void)
 {
 	atc2609a_clmt_enable(true);
 
 	atc2609a_clmt_check_fcc();
 
-	if (battery.health == BAT_NORMAL) {
-		atc2609a_clmt_set_ocv_table (bat_info);
-		debug("%s battery normal\n", __func__);
-	} else {
-		atc2609a_clmt_construct_fake_ocv_table();
-		atc2609a_clmt_set_ocv_table (fake_bat_info);
-		debug("%s battery unnormal\n", __func__);
+	if (!atc2609a_clmt_get_inited()){
+		if (battery.health == BAT_NORMAL) {
+			atc2609a_clmt_set_ocv_table (bat_info);
+			printf("%s battery normal\n", __func__);
+		} else {
+			atc2609a_clmt_construct_fake_ocv_table();
+			atc2609a_clmt_set_ocv_table (fake_bat_info);
+			printf("%s battery unnormal\n", __func__);
+		}		
 	}
+
 
 	atc2609a_bat_chk_reason();
 

@@ -133,7 +133,7 @@ int owl_check_power(void)
 
 		/* show low power logo */
 		if (status == POWER_LOW)
-			mdelay(1000);
+			mdelay(5000);
 
 		board_poweroff();
 	}

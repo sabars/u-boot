@@ -24,25 +24,28 @@
 
 #include <dss.h>
 #include <malloc.h>
+#include <errno.h>
 #include <asm/io.h>
 #include <fdtdec.h>
+#define MIPI_MAX_PARS	100
+#define MIPI_DSC_SET_ADRR_MODE	0x36
 
-static uint32_t gmc_init[] = {0x00110500, 0x00290500};
-#define GMC_INIT_LENS	(ARRAY_SIZE(gmc_init))
-
-static uint32_t gmc_disable[] = {0x00280500, 0x00100500};
-#define GMC_DIS_LENS	(ARRAY_SIZE(gmc_disable))
-
-struct dsi_init_cmd {
-	uint32_t cmd_nums;
-	uint32_t *mipi_cmd;
+struct dsi_cmd {
+	uint8_t		data_type;
+	uint8_t		address;
+	uint8_t		parameters[MIPI_MAX_PARS];
+	uint8_t		n_parameters;
+	uint8_t		delay;
 };
+
 struct panel_gmp_data {
 	struct gpio_desc		power_gpio;
 	struct gpio_desc		power1_gpio;
 	struct gpio_desc		reset_gpio;
 	/* Specific data can be added here */
-	struct dsi_init_cmd	*cmd;
+
+	struct dsi_cmd			*cmd_list;
+	uint32_t			n_cmd_list;
 };
 
 static int panel_mipi_power_on(struct owl_panel *panel)
@@ -77,24 +80,55 @@ static int panel_mipi_power_off(struct owl_panel *panel)
 	return 0;
 }
 
+/*
+ * command buffer format:
+ *	buffer 4 ~ (MIPI_MAX_PARS - 1) ---> parameters
+ *	buffer 3---> address
+ *	buffer 2---> number of parameters
+ *	buffer 1---> dcs data type
+ *	buffer 0---> cmd delay
+ *
+ */
 static int panel_mipi_enable(struct owl_panel *panel)
 {
 	struct panel_gmp_data *gmp = panel->pdata;
 	struct owl_display_ctrl *ctrl = panel->ctrl;
+	uint8_t *buffer, buffer_size;
+	struct dsi_cmd *tmp_cmd = NULL;
 	int i;
+
 	debug("%s\n", __func__);
 
-	/* send mipi initail command */
-	if (ctrl->ops && ctrl->ops->aux_write) {
-		/* send mipi initail command */
-		ctrl->ops->aux_write(ctrl, (char *)gmp->cmd->mipi_cmd,
-				gmp->cmd->cmd_nums);
+	tmp_cmd = gmp->cmd_list;
 
-		/* send general mipi command TODO*/
-		ctrl->ops->aux_write(ctrl, (char *)&gmc_init[0], 1);
-		mdelay(200);
-		ctrl->ops->aux_write(ctrl, (char *)&gmc_init[1], 1);
+	for (i = 0; i < gmp->n_cmd_list; i++) {
+
+		buffer_size = 4 + tmp_cmd[i].n_parameters;
+		buffer = malloc(buffer_size);
+		if(!buffer) {
+			error("malloc buffer failed!\n");
+			return -1;
+		}
+
+		buffer[0] = tmp_cmd[i].delay;
+		buffer[1] = tmp_cmd[i].data_type;
+		buffer[2] = tmp_cmd[i].n_parameters;
+		buffer[3] = tmp_cmd[i].address;
+
+		debug("cmd buffer size %d\n", buffer_size);
+		debug("data type 0x%x, n_parameters %d, address 0x%x\n",
+			buffer[1], buffer[2], buffer[3]);
+
+		memcpy(&buffer[4], &tmp_cmd[i].parameters,
+					tmp_cmd[i].n_parameters);
+
+		/* send mipi initail command */
+		if (ctrl->ops && ctrl->ops->aux_write)
+			ctrl->ops->aux_write(ctrl, (char *)buffer, buffer_size);
+
+		free(buffer);
 	}
+
 	return 0;
 }
 
@@ -124,44 +158,57 @@ static struct owl_panel owl_panel_mipi = {
 static int panel_parse_info(const void *blob, int node,
 	struct owl_panel *panel, struct panel_gmp_data *gmp)
 {
-	int cmd_numbers = 0, ret;
-	uint32_t *cmd, *prop, len;
-	struct owl_dss_panel_desc *desc = &panel->desc;
+	uint32_t byte_lens;
+	int entry, index, ret, len, i;
+	char entryname[64];
+	struct dsi_cmd *cmd = NULL;
+	void *temp = NULL;
+	int val;
 
 	debug("%s\n", __func__);
-	/*
-	 * parse mipi initial command
-	 * */
-	gmp->cmd = malloc(sizeof(struct dsi_init_cmd));
 
-	if (gmp->cmd == NULL) {
-		error("%s Error: malloc in mipi init_cmd failed!\n",
-		      __func__);
-		return -1;
-	}
-
-	prop = fdt_getprop(blob, node, "mipi_cmd", &len);
-	debug("cmd len  %d\n", len);
-
-	if (len > 4) {
-		gmp->cmd->mipi_cmd = calloc(len, sizeof(uint32_t));
-		if (!gmp->cmd->mipi_cmd) {
-			error("calloc mipi_cmd failed\n");
-			return 0;
+	/* parse mipi init cmd ... */
+	index = 0;
+	do {
+		snprintf(entryname, sizeof(entryname), "mipi_init_cmd-%u", index);
+		entry = fdtdec_lookup_phandle(blob, node, entryname);
+		debug("entry = %d\n", entry);
+		if (entry < 0) {
+			debug("no etry for %s\n", entryname);
+			break;
 		} else {
-			ret = fdtdec_get_int_array(blob, node, "mipi_cmd",
-				gmp->cmd->mipi_cmd, len / sizeof(uint32_t));
-			if (ret < 0) {
-				error("parse mipi initail command failed!\n");
-				return ret;
+
+			temp = realloc(cmd, (index + 1) * sizeof(*cmd));
+			if (!temp) {
+				return -ENOMEM;
 			}
-			gmp->cmd->cmd_nums = len / sizeof(uint32_t);
+
+			cmd[index].data_type = fdtdec_get_int(blob, entry, "data_type", 0);
+			debug("data_type 0x%x\n", cmd[index].data_type);
+			cmd[index].address = fdtdec_get_int(blob, entry, "address", 0);
+			debug("address 0x%x\n", cmd[index].address);
+
+			if (!fdt_getprop(blob, entry, "parameters", &len))
+				return -1;
+			ret = fdtdec_get_byte_array(blob, entry, "parameters",
+								&cmd[index].parameters, len);
+			if (ret < 0)
+				error("The requested node or property does not exist!\n");
+			cmd[index].n_parameters = len;
+			debug("parameters lens %d\n", len);
+
+			cmd[index].delay = fdtdec_get_int(blob, entry, "delay", 0);
+			debug("delay %d\n", cmd[index].delay);
+
+			index++;
 		}
-	} else {
-		gmp->cmd->mipi_cmd == NULL;
-		gmp->cmd->cmd_nums = 0;
-		debug("%s: No mipi initail command!\n", __func__);
-	}
+	} while (1);
+
+	gmp->cmd_list = cmd;
+	gmp->n_cmd_list = index;
+	debug("n_cmd_list 0x%x\n", gmp->n_cmd_list);
+
+	/* parse mipi disable cmd ... TODO */
 
 	/*
 	 * parse mipi panel power on gpio,  It is not necessary!!!

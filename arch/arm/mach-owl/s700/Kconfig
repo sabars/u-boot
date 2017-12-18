@@ -13,8 +13,8 @@ config TARGET_S700_ROSEAPPLEPI
 config TARGET_S700_EVB
 	bool "Actions S700 evb board: storage emmc/nand"
 
-config TARGET_S700_CB6
-	bool "Actions S700_cb6 board: storage emmc/nand"
+config TARGET_S700_CB7
+	bool "Actions S700_cb7 board: storage emmc/nand"
 
 config TARGET_S700_QCB
 	bool "Actions S700_QCB board: storage emmc/nand"
@@ -67,7 +67,7 @@ source "board/actions/s700_roseapplepi/Kconfig"
 source "board/actions/s700_evb/Kconfig"
 source "board/actions/s700_upgrade/Kconfig"
 source "board/actions/s700_roseapplepi_upgrade/Kconfig"
-source "board/actions/s700_cb6/Kconfig"
+source "board/actions/s700_cb7/Kconfig"
 source "board/actions/s700_qcb/Kconfig"
 source "board/actions/gt7_ebox/Kconfig"
 source "board/actions/gt7_upgrade/Kconfig"

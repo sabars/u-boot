@@ -1,0 +1,25 @@
+#
+# Actions USB Controller Drivers
+#
+
+config USB_AOTG_HCD
+	bool "Aotg HCD (USB 2.0) support"
+	default n
+	help
+	  The AOTG Host Controller is compatible with USB 2.0 which supports
+	  low-speed, full-speed and high-spped devices.
+	  For now, we only support Control and Bulk transfers, and we use
+	  cpu mode cause we don't care about performance much.
+
+if USB_AOTG_HCD
+
+config AOTG_NEW_MODE
+	bool "Aotg HCD supports Transfer Ring"
+	default n
+	help
+	  Enable this for New design for Aotg HCD which uses TRB(DMA)
+	  scheme instead of cpu. The sad fact is that some AOTG
+	  controller doesn't support cpu mode for BULK transfer, so
+	  we have to use DMA.
+
+endif

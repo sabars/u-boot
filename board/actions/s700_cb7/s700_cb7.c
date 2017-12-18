@@ -36,7 +36,7 @@ int board_init(void)
 #ifdef CONFIG_BOARD_LATE_INIT
 int board_late_init(void)
 {
-#if 0
+#if 1
 	int ret;
 
 	ret = owl_board_late_init();

@@ -161,8 +161,10 @@ struct owl_panel *owl_panel_get_second_panel(void)
 	int i;
 
 	for (i = 0; i < owl_panel_num; i++) {
-		if (!owl_panel_array[i]->desc.is_primary)
-			return owl_panel_array[i];
+		if (!owl_panel_array[i]->desc.is_primary) {
+			if(owl_panel_hpd_is_connected(owl_panel_array[i]) == true)
+				return owl_panel_array[i];
+		}
 	}
 
 	return NULL;

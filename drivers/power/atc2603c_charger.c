@@ -1085,8 +1085,13 @@ int atc2603c_charger_init(const void *blob)
 		ret = owl_usb_get_connect_type();
 		printf("CHARGER:usb type:%s\n", (ret == 2) ? "usb adaptor" : "usb pc");
 		if (ret == 2) {
+			if(atc2603c_charger_info.data.support_adaptor_type == 3)
+				atc2603c_vbus_set_current_lmt(VBUS_CURR_LIMT_100MA);
+			else
+			{
 				if (dm_gpio_is_valid(&(atc2603c_charger_info.wall_switch)))
 					dm_gpio_set_value(&(atc2603c_charger_info.wall_switch), 1);
+			}
 		}
 	}
 

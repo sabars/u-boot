@@ -19,14 +19,28 @@
 #define CONFIG_BOOTDELAY		0	/* autoboot after 1 seconds */
 
 #define CONFIG_PWM_OWL
-
 #define CONFIG_BOOTDEV_AUTO
+/*CHARGER*/
+#define CONFIG_POWER_CHARGER
+#define CONFIG_ATC260X_CHARGER
+#define CONFIG_ATC2603C_CHARGER
+#define CONFIG_POWER_BATTERY
+#define CONFIG_POWER_BATTERY_ATC260X
+#define CONFIG_POWER_BATTERY_ATC2603C
+
+
+/* USB Configs */
+#define CONFIG_USB_CONNECT_DETECT
+/* ADFU */
+#define CONFIG_G_DNL_ADFU_VENDOR_NUM    0x10d6
+#define CONFIG_G_DNL_ADFU_PRODUCT_NUM   0x10d6
 /* video support */
 #define CONFIG_VIDEO
 #define CONFIG_VIDEO_OWL
 #define CONFIG_VIDEO_OWL_DE_S700
 #define CONFIG_VIDEO_OWL_DSI
 #define CONFIG_VIDEO_OWL_HDMI
+#define CONFIG_VIDEO_OWL_CVBS
 #define CONFIG_VIDEO_OWL_LCD
 
 #define CONFIG_CFB_CONSOLE
@@ -53,6 +67,9 @@
 
 #define CONFIG_OWL_NAND
 
+#define CONFIG_CHECK_POWER
+/* check key & power in board later init stage */
+#define CONFIG_BOARD_LATE_INIT
 
 /* DWC3 */
 #define CONFIG_USB_DWC3_OWL_S700
@@ -106,6 +123,11 @@
 #define CONFIG_CMD_USB
 #define CONFIG_USB_STORAGE
 
+/* AOTG USB Host Controller */
+#define CONFIG_USB_AOTG_HCD
+#define CONFIG_AOTG_NEW_MODE
+#define CONFIG_AOTG_700
+
 /* support enter android recovery */
 #define CONFIG_ANDROID_RECOVERY
 #define ANDROID_RECOVERY_PART                "2"
@@ -114,4 +136,17 @@
 
 /* support ir key */
 #define CONFIG_ATC260X_IRKEY
+/* support adckey*/
+#define CONFIG_ATC260X_ADCKEY
+#define CONFIG_CHECK_KEY
+#define CONFIG_KEY_ENTER_ADFU
+
+/*irkey detect uhost ,if the uhost had update.zip , enter recovery update*/
+#define IR_KEY_UDISK_DETECT         KEY_BACK
+#define IR_KEY_ENTER_RECOVERY     KEY_SELECT
+//#define CONFIG_IR_CONTROL_RECOVERY
+
+
+
+
 #endif /* __CONFIG_S700_EVB_H__ */

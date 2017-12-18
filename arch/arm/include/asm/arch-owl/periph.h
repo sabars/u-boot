@@ -51,6 +51,9 @@ enum periph_id {
 
 	PERIPH_ID_CSI,
 
+	PERIPH_ID_LCD,
+	PERIPH_ID_LVDS,
+
 	PERIPH_ID_NONE = -1,
 
 };

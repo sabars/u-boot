@@ -159,3 +159,59 @@ int atc260x_adckey_scan(void)
 
 	return ret;
 }
+
+#define ONOFF_LONG_PRESS		(1 << 13)
+#define ONOFF_SHORT_PRESS		(1 << 14)
+#define ONOFF_PRESS                     (1 << 15)
+int count_onoff_short_press(void)
+{
+    int i, poll_times, on_off_val;
+    
+    printf("count_onoff_short_press\n");
+    on_off_val = atc260x_reg_read(ATC2603C_PMU_SYS_CTL2);
+    if((on_off_val & ONOFF_PRESS) == 0){
+        printf("on off key is no pressed!  return 0\n");
+        return 0; 
+     }
+    printf("on off key is pressed!\n");
+    
+	while ( 1 ) { /*wait key move*/
+	    on_off_val = atc260x_reg_read(ATC2603C_PMU_SYS_CTL2);
+	    if((on_off_val & ONOFF_PRESS) == 0){
+	        printf("on off key is no pressed!\n");
+	        break; 
+	     }
+		mdelay(1);
+	}
+        
+    printf("start count onoff times\n");
+        
+    /* clear On/Off press pending */
+    atc260x_set_bits(ATC2603C_PMU_SYS_CTL2, 
+        ONOFF_SHORT_PRESS | ONOFF_LONG_PRESS, 
+        ONOFF_SHORT_PRESS | ONOFF_LONG_PRESS);
+	
+    
+    for(poll_times = 0; poll_times < 8; poll_times++)
+    {
+        for(i = 0; i < 2000; i++)
+        {
+            on_off_val = atc260x_reg_read(ATC2603C_PMU_SYS_CTL2);
+            if ((on_off_val & ONOFF_SHORT_PRESS) != 0){
+                printf("one time \n");
+                break;
+            }
+            mdelay(1);
+        }
+        
+        if(i == 2000)
+            break;
+            
+        atc260x_set_bits(ATC2603C_PMU_SYS_CTL2, 
+            ONOFF_SHORT_PRESS | ONOFF_LONG_PRESS, 
+            ONOFF_SHORT_PRESS | ONOFF_LONG_PRESS);
+    }
+    
+    printf("Onoff press %d times\n", poll_times);
+    return poll_times;
+}
