@@ -55,11 +55,12 @@ static int pwm_clk_set(int hwpwm, uint32_t parent, int rate)
 	unsigned long cmu_pwmclk_reg;
 
 	cmu_pwmclk_reg = CMU_PWM0CLK + hwpwm * 0x4;
-
+#ifndef CONFIG_ATS3605
 	if (PWM4 == hwpwm)
 		cmu_pwmclk_reg = CMU_PWM4CLK;
 	if (PWM5 == hwpwm)
 		cmu_pwmclk_reg = CMU_PWM5CLK;
+#endif
 	tmp = readl(cmu_pwmclk_reg);
 	if (parent == PWM_PARENT_HOSC) {
 		parent_rate = 24000000;

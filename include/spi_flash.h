@@ -31,6 +31,15 @@
 # define CONFIG_SF_DEFAULT_BUS		0
 #endif
 
+/*Support spi flash*/
+#define CONFIG_SPI_FLASH_ATMEL
+#define CONFIG_SPI_FLASH_EON
+#define CONFIG_SPI_FLASH_GIGADEVICE
+#define CONFIG_SPI_FLASH_MACRONIX
+#define CONFIG_SPI_FLASH_WINBOND
+#define CONFIG_SPI_FLASH_SPANSION
+#define CONFIG_SPI_FLASH_STMICRO
+
 struct spi_slave;
 
 /**

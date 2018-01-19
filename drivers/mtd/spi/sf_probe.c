@@ -191,6 +191,7 @@ static int spi_flash_validate_params(struct spi_slave *spi, u8 *idcode,
 	flash->sector_size = flash->erase_size;
 
 	/* Look for the fastest read cmd */
+	flash->spi->op_mode_rx = 4; //Dual ouput read, raise spi read spped
 	cmd = fls(params->e_rd_cmd & flash->spi->op_mode_rx);
 	if (cmd) {
 		cmd = spi_read_cmds_array[cmd - 1];

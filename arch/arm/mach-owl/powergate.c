@@ -51,6 +51,18 @@ struct owl_powergate_info owl_powergate[POWERGATE_MAX_ID] = {
 };
 #endif
 
+#if defined(CONFIG_ATS3605)
+struct owl_powergate_info owl_powergate[POWERGATE_MAX_ID] = {
+	//[POWERGATE_USB3]   = {"usb3", SPS_PG_CTL, SPS_PG_ACK, 8, 8,
+	//		      {-1, -1,}, {RESET_USB3, -1,} },
+	[POWERGATE_DE]     = {"de", SPS_PG_CTL, SPS_PG_ACK, 9, 9,
+			      {CLOCK_DE, -1,}, {RESET_DE, -1,} },
+	[POWERGATE_NAND]   = {"nand", SPS_PG_CTL, SPS_PG_ACK, 14, 12,
+			      {CLOCK_NANDC, -1,},
+			      {RESET_NANDC, -1,} },
+};
+#endif
+
 static int validate_pgid(int pg_id)
 {
 	if (pg_id > POWERGATE_MAX_ID)

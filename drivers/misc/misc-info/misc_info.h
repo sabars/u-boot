@@ -28,8 +28,9 @@ extern void free(void *ptr);
 extern int debug_enable;
 
 #define MISC_INFO_MAGIC          0x55aa55aa
-#define MISC_INFO_OFFSET         (6*1024*1024)
-#define MISC_INFO_MAX_SIZE       (1024*1024)
+#define MISC_INFO_OFFSET         (1.5*1024*1024)
+#define MISC_INFO_MAX_SIZE       (512*1024)
+#define MISC_INFO_NORFLASH_SIZE  (128*1024)
 #define MISC_INFO_MAX_ITEM_NUM   16
 #define MISC_INFO_HEAD_ALIGN     1024
 

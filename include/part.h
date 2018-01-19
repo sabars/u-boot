@@ -110,6 +110,9 @@ block_dev_desc_t *host_get_dev(int dev);
 #ifdef CONFIG_OWL_NAND
 block_dev_desc_t *owl_nand_get_dev(int dev);
 #endif
+#ifdef CONFIG_OWL_NOR
+block_dev_desc_t *owl_nor_get_dev(int dev);
+#endif
 int host_get_dev_err(int dev, block_dev_desc_t **blk_devp);
 
 /* disk/part.c */

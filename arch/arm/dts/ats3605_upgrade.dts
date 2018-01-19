@@ -1,0 +1,25 @@
+/*
+ * Copyright (c) 2015 Actions Semi Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+#include "ats3605.dtsi"
+
+/ {
+	model = "ats3605 upgrade";
+	compatible = "actions,ats3605_upgrade";
+
+	chosen {
+		stdout-path = &serial2;
+	};
+
+	clock:b0150000 {
+		compatible = "actions,owl-clk";
+		core_pll = <600>;
+		dev_pll = <300>;
+		display_pll = <480>;
+	};
+};

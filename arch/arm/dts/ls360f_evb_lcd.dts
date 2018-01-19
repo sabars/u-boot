@@ -1,0 +1,34 @@
+/*
+ * Copyright (c) 2015 Actions Semi Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+#include "ats3605.dtsi"
+
+/ {
+	model = "ats3605 evb nor";
+	compatible ="actions,ats3605";
+
+	chosen {
+		stdout-path = &serial2;
+	};
+
+
+	spi0: spi@b0300000 {
+		status = "okay";
+		m25p80@0 {
+            compatible = "m25p80";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x0>;
+            spi-max-frequency = <60000000>;
+            uboot-partition = <0x0 0xe0000>;
+            misc-partition = <0xe0000 0x20000>;
+            system-partition = <0x100000 0xf00000>;
+        };
+	};
+
+};

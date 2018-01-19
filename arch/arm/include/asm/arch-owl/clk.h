@@ -11,6 +11,8 @@
 #include <asm/arch/clk_s900.h>
 #elif defined(CONFIG_S700)
 #include <asm/arch/clk_s700.h>
+#elif defined(CONFIG_ATS3605)
+#include <asm/arch/clk_ats3605.h>
 #else
 #error Unknown SoC type
 #endif

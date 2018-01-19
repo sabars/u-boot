@@ -1,0 +1,12 @@
+if TARGET_HOBOT_EVB
+
+config SYS_BOARD
+	default "hobot_evb"
+
+config SYS_VENDOR
+	default "actions"
+
+config SYS_CONFIG_NAME
+	default "hobot_evb"
+
+endif

@@ -56,6 +56,9 @@ static int owl_perip_to_clk_id(int perip_id)
 	case PERIPH_ID_UART6:
 		return CLOCK_UART6;
 
+	case PERIPH_ID_SPI0:
+		return CLOCK_SPI0;
+
 	case PERIPH_ID_I2C0:
 		return CLOCK_I2C0;
 	case PERIPH_ID_I2C1:

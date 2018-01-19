@@ -1,0 +1,92 @@
+/*
+ * Copyright (c) 2015 Actions Semi Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/ {
+	compatible = "actions,s700";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial2 = &serial2;
+		serial3 = &serial3;
+		serial5 = &serial5;
+		i2c0 = &i2c0;
+		i2c2 = &i2c2;
+		gpio0 = &gpioa;
+		gpio1 = &gpiob;
+		gpio2 = &gpioc;
+		gpio3 = &gpiod;
+		gpio4 = &gpioe;
+		spi0  = &spi0;
+	};
+
+	gpioa: gpio@b01c0000 {
+		compatible = "actions,ats3605-gpio";
+		reg = <0xb01c0000 0xc>;
+		#gpio-cells = <2>;
+	};
+	gpiob: gpio@b01c000c {
+		compatible = "actions,ats3605-gpio";
+		reg = <0xb01c000c 0xc>;
+		#gpio-cells = <2>;
+	};
+	gpioc: gpio@b01c0018 {
+		compatible = "actions,ats3605-gpio";
+		reg = <0xb01c0018 0xc>;
+		#gpio-cells = <2>;
+	};
+	gpiod: gpio@b01c0024 {
+		compatible = "actions,ats3605-gpio";
+		reg = <0xb01c0024 0xc>;
+		#gpio-cells = <2>;
+	};
+	gpioe: gpio@b01c0030 {
+		compatible = "actions,ats3605-gpio";
+		reg = <0xb01c0030 0xc>;
+		#gpio-cells = <2>;
+	};
+
+	spi0: spi@b0300000 {
+		compatible = "actions,ats3605-spi";
+		reg = <0xb0300000  0x40>;
+	};
+
+	serial5: uart@b016a000 {
+		compatible = "actions,ats3605-serial";
+		reg = <0xb016a000 0x1000>;
+	};
+
+	serial3: uart@b0166000 {
+		compatible = "actions,ats3605-serial";
+		reg = <0xb0166000 0x1000>;
+	};
+	serial2: uart@b0164000 {
+		compatible = "actions,ats3605-serial";
+		reg = <0xb0164000 0x1000>;
+	};
+	serial0: uart@b0160000 {
+		compatible = "actions,ats3605-serial";
+		reg = <0xb0160000 0x1000>;
+	};
+	i2c0: i2c@b0180000 {
+		compatible = "actions,ats3605-i2c";
+		reg = <0xb0180000  0x100>;
+	};
+	i2c2: i2c@b0188000 {
+		compatible = "actions,ats3605-i2c";
+		reg = <0xb0188000 0x100>;
+	};
+
+	usb2h0: usb@b0240000 {
+		compatible = "actions,ats3605-usb2.0-0";
+		reg = <0xb0240000 0x1000>;
+	};
+
+	usb2h1: usb@b0250000 {
+		compatible = "actions,ats3605-usb2.0-1";
+		reg = <0xb0250000 0x1000>;
+	};
+};

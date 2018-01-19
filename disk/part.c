@@ -55,6 +55,9 @@ static const struct block_drvr block_drvr[] = {
 #if defined(CONFIG_OWL_NAND)
 	{ .name = "nand", .get_dev = owl_nand_get_dev, },
 #endif
+#if defined(CONFIG_OWL_NOR)
+	{ .name = "nor", .get_dev = owl_nor_get_dev, },
+#endif
 	{ },
 };
 

@@ -205,7 +205,6 @@ static void owl_mmc_set_clk(struct owl_mmc_host *host, int rate)
 	}
 
 	owl_sd_clk_set_rate(host->id, rate);
-
 }
 
 static void owl_mmc_power_up(struct owl_mmc_host *host)
@@ -329,6 +328,55 @@ static void owl_mmc_set_ios(struct mmc *mmc)
 	writel(ctrl_reg, HOST_EN(host));
 }
 
+#ifdef CONFIG_ATS3605
+static int ats_mmc_prepare_data(struct owl_mmc_host *host,
+				struct mmc_data *data)
+{
+    unsigned int dma_address;
+    unsigned int dma_length;
+    unsigned int datablks;
+
+    /*use sdc master dma*/
+    writel(readl(HOST_EN(host)) | SD_EN_BSEL, HOST_EN(host));
+
+    dma_address = (unsigned int)data->dest;
+    datablks = data->blocks;
+    dma_length = datablks * data->blocksize;
+
+    //dma_cache_wback_inv((unsigned int) data->dma_address, dma_length);
+    flush_dcache_all();
+    writel(data->blocksize, HOST_BLK_SIZE(host));
+    writel(datablks, HOST_BLK_NUM(host));
+    writel(dma_address, HOST_DMA_ADDR(host));
+    writel(dma_length, HOST_DMA_CTL(host));
+
+    pr_debug("SDx_BLK_NUM:0X%x\n", readl(HOST_BLK_NUM(host)));
+    pr_debug("SDx_BLK_SIZE:0X%x\n", readl(HOST_BLK_SIZE(host)));
+
+    /*DMA finish interrupt enable*/
+    writel(readl(HOST_DMA_CTL(host)) | 0x10000000, HOST_DMA_CTL(host));
+
+	return 0;
+}
+
+static int ats_dma_wait_finished(struct owl_mmc_host *host, unsigned int us)
+{
+	unsigned int cnt = 0;
+
+	while (0x20000000 != (readl(HOST_DMA_CTL(host)) & 0x20000000))
+	{
+		cnt += 32;
+		udelay(32);
+		if(cnt > us)
+		{
+			return -1;
+		}
+	}
+
+	writel(readl(HOST_DMA_CTL(host)) | 0x20000000, HOST_DMA_CTL(host));
+	return 0;
+}
+#else
 static int owl_mmc_prepare_data(struct owl_mmc_host *host,
 				struct mmc_data *data)
 {
@@ -378,16 +426,17 @@ static int owl_mmc_prepare_data(struct owl_mmc_host *host,
 
 	return 0;
 }
+#endif
 
 static void owl_mmc_finish_request(struct owl_mmc_host *host)
 {
 	/* release DMA, etc */
-
+#ifndef CONFIG_ATS3605
 	owl_dma_stop(host->dma_channel);
+#endif
 	while (readl(HOST_CTL(host)) & SD_CTL_TS) {
 		writel(readl(HOST_CTL(host)) & (~SD_CTL_TS), HOST_CTL(host));
 	}
-
 }
 
 static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
@@ -452,7 +501,11 @@ static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	writel(cmd->cmdidx, HOST_CMD(host));
 
 	if (data) {
+#ifndef CONFIG_ATS3605
 		ret = owl_mmc_prepare_data(host, data);
+#else
+		ret = ats_mmc_prepare_data(host, data);
+#endif
 		/*set lbe to send clk after busy */
 		if(host->id == 2 || host->id == 3) {
 			debug("cid[0]:0x%x\n", mmc->cid[0]);
@@ -474,10 +527,15 @@ static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 		mode |= SD_CTL_TS;
 	}
 
-	debug("SDC%d:Transfer mode:0x%x\n\tArg:0x%x\n\tCmd:%u\n",
+	pr_debug("SDC%d:Transfer mode:0x%x\n\tArg:0x%x\n\tCmd:%u\n",
 	      host->id, mode, cmd->cmdarg, cmd->cmdidx);
 
 	writel(mode, HOST_CTL(host));	/* start transfer */
+#ifdef CONFIG_ATS3605
+	if (data) {
+		writel(readl(HOST_DMA_CTL(host))  | 0x80000000, HOST_DMA_CTL(host));
+	}
+#endif
 
 	/* wait SDC transfer complete */
 	while ((readl(HOST_CTL(host)) & SD_CTL_TS) && timeout--)
@@ -540,8 +598,12 @@ static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	}
 
 	if (data) {
-		if (owl_dma_wait_finished(host->dma_channel, 5000000)) {
-
+#ifndef CONFIG_ATS3605
+		if (owl_dma_wait_finished(host->dma_channel, 5000000))
+#else
+		if (ats_dma_wait_finished(host, 5000000))
+#endif
+		{
 			printf("SDC%d:dma transfer data 5s timeout\n",
 			       host->id);
 			owl_dump_mfp(host);
@@ -551,7 +613,6 @@ static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 		}
 
 		owl_mmc_finish_request(host);
-
 		return 0;
 	}
 
@@ -560,19 +621,24 @@ static int owl_mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 
 static int owl_host_init(int index, struct owl_mmc_host *host)
 {
-
 	memset(host, 0, sizeof(struct owl_mmc_host));
 
+#ifndef CONFIG_ATS3605
 	host->dma_channel = owl_dma_request();
 	if (!(host->dma_channel)) {
 		printf("!!!err:owl_dma_request\n");
 		return -1;
 	}
+#else
+	host->dma_channel = NULL;
+#endif
 
 	switch (index) {
 	case 0:
 		host->id = SDC0_SLOT;
+#ifndef CONFIG_ATS3605
 		host->dma_irq = DMA_DRQ_SD0;
+#endif
 		host->iobase = OWL_SDC0_BASE;
 		host->pad_drv = SDC0_PAD_DRV;
 		host->wdelay.delay_lowclk = SDC0_WDELAY_LOW_CLK;
@@ -584,7 +650,9 @@ static int owl_host_init(int index, struct owl_mmc_host *host)
 		break;
 	case 1:
 		host->id = SDC1_SLOT;
+#ifndef CONFIG_ATS3605
 		host->dma_irq = DMA_DRQ_SD1;
+#endif
 		host->iobase = OWL_SDC1_BASE;
 		host->pad_drv = SDC1_PAD_DRV;
 		host->wdelay.delay_lowclk = SDC1_WDELAY_LOW_CLK;
@@ -596,7 +664,9 @@ static int owl_host_init(int index, struct owl_mmc_host *host)
 		break;
 	case 2:
 		host->id = SDC2_SLOT;
+#ifndef CONFIG_ATS3605
 		host->dma_irq = DMA_DRQ_SD2;
+#endif
 		host->iobase = OWL_SDC2_BASE;
 		host->pad_drv = SDC2_PAD_DRV;
 		host->wdelay.delay_lowclk = SDC2_WDELAY_LOW_CLK;
@@ -629,7 +699,6 @@ static int owl_host_init(int index, struct owl_mmc_host *host)
 
 static struct mmc_config *owl_mmc_config_init(int dev_index)
 {
-
 	struct mmc_config *cfg = NULL;
 	struct mmc_ops *mmc_ops = NULL;
 
@@ -684,7 +753,6 @@ static struct mmc_config *owl_mmc_config_init(int dev_index)
 	cfg->voltages = OWL_MMC_OCR;
 
 	return cfg;
-
 }
 
 int owl_mmc_init(int dev_index)
@@ -712,14 +780,20 @@ int owl_mmc_init(int dev_index)
 	if (ret) {
 		printf("host%d scan err\n", dev_index);
 		if (dev_index == SLOT0) {
-			printf("host0 checkout to uartpin\n");
+			//printf("host0 checkout to uartpin\n");
 			pinmux_select(PERIPH_ID_SDMMC0, 1);
-			printf("ct2:0x%08x \n", readl(MFP_CTL2));
+			//printf("ct2:0x%08x \n", readl(MFP_CTL2));
 		}
 	} else {
 		printf("host%d scan ok\n", dev_index);
+		mmc_host[dev_index].init_ok = 1;
 	}
 	return ret;
+}
+
+int owl_mmc_check_init(int dev_index)
+{
+	return mmc_host[dev_index].init_ok;
 }
 
 #ifdef CONFIG_OWL_EMMC_RAID0

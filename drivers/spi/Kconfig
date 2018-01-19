@@ -36,6 +36,13 @@ config EXYNOS_SPI
 	  access the SPI NOR flash on platforms embedding this Samsung
 	  Exynos IP core.
 
+config OWL_SPI
+	bool "Actions Owl SPI driver"
+	help
+	  Enable the Actions Owl SPI driver. This driver can be used to
+	  access the SPI NOR flash on platforms embedding this Actions
+	  Owl IP core.
+
 config FSL_DSPI
 	bool "Freescale DSPI driver"
 	help

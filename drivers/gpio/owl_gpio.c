@@ -192,6 +192,7 @@ static int gpio_owl_probe(struct udevice *dev)
 static const struct udevice_id owl_gpio_ids[] = {
 	{ .compatible = "actions,s900-gpio" },
 	{ .compatible = "actions,s700-gpio" },
+	{ .compatible = "actions,ats3605-gpio" },
 	{ },
 };
 

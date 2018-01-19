@@ -9,9 +9,12 @@
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 
+
+
 noinline u64 owl_invoke_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 					 u64 arg2)
 {
+#if defined(CONFIG_ARM64)
 	__asm__ __volatile__(
 			__asmeq("%0", "x0")
 			__asmeq("%1", "x1")
@@ -22,4 +25,7 @@ noinline u64 owl_invoke_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 		: "r" (arg0), "r" (arg1), "r" (arg2));
 
 	return function_id;
+#else
+	return 0;
+#endif
 }

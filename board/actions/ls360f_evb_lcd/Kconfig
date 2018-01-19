@@ -1,0 +1,12 @@
+if TARGET_LS360F_EVB_LCD
+
+config SYS_BOARD
+	default "ls360f_evb_lcd"
+
+config SYS_VENDOR
+	default "actions"
+
+config SYS_CONFIG_NAME
+	default "ls360f_evb_lcd"
+
+endif

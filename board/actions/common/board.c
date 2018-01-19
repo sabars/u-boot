@@ -12,6 +12,8 @@
 #include <dwc3-owl-uboot.h>
 #include <owl-usb-phy-uboot.h>
 #include <asm/arch/sys_proto.h>
+#include <power/power_battery.h>
+#include <power/power_charger.h>
 #include "board.h"
 
 extern int read_mi_item(char *name, void *buf, unsigned int count);
@@ -56,6 +58,21 @@ int board_mmc_init(bd_t *bis)
 }
 #endif
 
+
+void kernel_cmdline_add(char * cmd)
+{
+	char new_env[CONFIG_SYS_BARGSIZE];
+	char *bootargs_env;
+	bootargs_env = getenv("bootargs.add");
+	if (bootargs_env != NULL) {
+		snprintf(new_env, CONFIG_SYS_BARGSIZE, "%s %s",
+			 bootargs_env, cmd);
+	} else {
+		strcpy(new_env, cmd);
+	}
+	setenv("bootargs.add", new_env);
+}
+
 /*check serialno vaild*/
 static int serialno_check(char *sn, int num)
 {
@@ -91,7 +108,7 @@ int serialno_read(char *buf)
 #if (defined(CONFIG_OWL_NAND) ||  defined(CONFIG_OWL_MMC))
 	ret = read_mi_item("SN", sn, sizeof(sn));
 	if (ret < 0) {
-		printf("read bf-sn faild,errorcode:%d,\n", ret);
+		printf("read sn faild:%d,\n", ret);
 	} else {
 		printf("bf-sn:%d, %s\n", ret, sn);
 	}
@@ -103,9 +120,13 @@ int serialno_read(char *buf)
 		return 0;
 	}
 #endif
+#ifdef CONFIG_ATS3605_BOOTPARA
+	ats3605_get_serial(buf, 20);
+	//printf(" serialno=%s\n", buf);
+#else
 	printf("use deafult serialno\n");
 	strcpy(buf, "abcdef0123456789");
-
+#endif
 	return 0;
 
 }
@@ -222,14 +243,15 @@ int boot_append_bootargs_add(void *fdt)
 {
 	int node = 0, ret = 0;
 	const char *bootargs;
-	char *bootargs_add;
-	char new_prop[CONFIG_SYS_BARGSIZE];
+	char *bootargs_add, *pre_add;
+	char new_prop[CONFIG_SYS_BARGSIZE],  add_prop[CONFIG_SYS_BARGSIZE];
 
 	boot_env_to_add();
 	boot_dvfslevel_to_add();
 	boot_boardinfo_to_add();
 	bootargs_add = getenv("bootargs.add");
-	if (bootargs_add == NULL)
+	pre_add = getenv("bootargs.preadd");
+	if (bootargs_add == NULL && pre_add == NULL )
 		return 0;
 
 	/* find "/chosen" node. */
@@ -246,8 +268,16 @@ int boot_append_bootargs_add(void *fdt)
 		return -ENOENT;
 	}
 
+	if ( bootargs_add != NULL &&  pre_add != NULL )
+		snprintf(add_prop, CONFIG_SYS_BARGSIZE, "%s %s",
+		 	pre_add, bootargs_add);
+	else if (bootargs_add != NULL)
+		strcpy(add_prop, bootargs_add);
+	else
+		strcpy(add_prop, pre_add);
+
 	snprintf(new_prop, CONFIG_SYS_BARGSIZE, "%s %s",
-		 bootargs, bootargs_add);
+		 bootargs, add_prop);
 
 	ret = fdt_setprop(fdt, node, "bootargs",
 			  new_prop, strlen(new_prop) + 1);
@@ -256,10 +286,27 @@ int boot_append_bootargs_add(void *fdt)
 		return ret;
 	}
 
-	printf("%s, bootargs %s\n", __func__, new_prop);
+	//printf("%s, bootargs %s\n", __func__, new_prop);
 
 	return 0;
 }
+
+#ifdef CONFIG_HARD_POWERKEY
+int check_enter_charger(void)
+{
+	int charger_online;
+	if ( hardkey_check_on())
+		return 0;
+	charger_online = atc260x_charger_check_online();
+	/* adapter is offline */
+	if (charger_online == ADAPTER_TYPE_NO_PLUGIN) {
+		printf("hardkey off, no adapter, power off\n");
+		board_poweroff();
+	}
+	return 1;
+}
+
+#endif
 
 #ifdef CONFIG_OF_BOARD_SETUP
 int fdt_fixup_bootargs(void *fdt)
@@ -267,7 +314,9 @@ int fdt_fixup_bootargs(void *fdt)
 	int node, ret;
 	const char *bootargs;
 	char new_prop[CONFIG_SYS_BARGSIZE];
+#ifndef CONFIG_HARD_POWERKEY
 	int power_status;
+#endif
 
 	/* find "/chosen" node. */
 	node = fdt_path_offset(fdt, "/chosen");
@@ -284,14 +333,17 @@ int fdt_fixup_bootargs(void *fdt)
 		/* enter recovery */
 		return 0;
 #endif
-
+	#ifdef CONFIG_HARD_POWERKEY
+	if (!check_enter_charger())
+		return 0;
+	#else
 	power_status = owl_get_power_status();
 	if ((power_status == POWER_EXCEPTION) ||
 	    ((power_status != POWER_NORMAL_CHARGER) &&
 	     (power_status != POWER_CRITICAL_LOW_CHARGER)))
 		/* no need to update bootargs */
 		return 0;
-
+	#endif
 	/* set androidboot to charger */
 	printf("%s: set androidboot.mode: charger\n", __func__);
 	snprintf(new_prop, CONFIG_SYS_BARGSIZE, "%s %s ",
@@ -455,6 +507,9 @@ int owl_board_late_init(void)
 	owl_battery_reset();
 #endif
 
+#ifdef CONFIG_ATS3605_BOOTPARA
+	ats3605_bootpara_init();
+#endif
 	return ret;
 }
 

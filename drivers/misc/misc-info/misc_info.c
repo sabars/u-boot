@@ -29,9 +29,16 @@
 #else
 #include <common.h>
 #include <errno.h>
+#include <spi_flash.h>
+//for dts
+#include <part.h>
+#include <config.h>
+#include <libfdt.h>
+#include <fdtdec.h>
 /*#include <mmc.h>*/
 /*#include <malloc.h>*/
 /*#include <asm/arch/owl_afi.h>*/
+DECLARE_GLOBAL_DATA_PTR;
 #endif
 
 #include "misc_info.h"
@@ -44,13 +51,14 @@ int write_misc_info(void *buf, unsigned int count);
 extern int mi_debug_init(void);
 extern int mi_debug_exit(void);
 
-const char *mi_file[6] = {
+const char *mi_file[7] = {
 	"/dev/nand0",
 	"/dev/block/nand0",
 	"/dev/md_d0",
 	"/dev/block/md_d0",
 	"/dev/mmcblk0",
-	"/dev/block/mmcblk0"
+	"/dev/block/mmcblk0",
+	"/dev/mtd1"
 };
 
 /*
@@ -78,7 +86,7 @@ int read_storage(void *buf, int start, int size)
 	old_fs = get_fs();
     set_fs(get_ds());
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 7; i++) {
 		file = filp_open(mi_file[i], O_RDONLY, 0);
 		if (IS_ERR(file) || file->f_op == NULL
 			|| file->f_op->read == NULL) {
@@ -92,7 +100,7 @@ int read_storage(void *buf, int start, int size)
 			else if (file->f_op->read == NULL) {
 				PRINT_DBG("file->f_op->read == NULL\n");
 			}
-			if (i < 5) {
+			if (i < 6) {
 				continue;
 			} else {
 				PRINT_ERR("no blk dev\n");
@@ -107,6 +115,10 @@ int read_storage(void *buf, int start, int size)
 
 	if (i == 2 || i == 3) {
 		mi_base = MISC_INFO_OFFSET * 2;
+	} else if (i == 6) {
+        mi_base = 0;
+        if (size > MISC_INFO_NORFLASH_SIZE)
+            size = MISC_INFO_NORFLASH_SIZE;
 	} else {
 		mi_base = MISC_INFO_OFFSET;
 	}
@@ -158,11 +170,11 @@ int write_storage(void *buf, int start, int size)
 	old_fs = get_fs();
 	set_fs(get_ds());
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 7; i++) {
 		file = filp_open(mi_file[i], O_RDWR, 0);
 		if (IS_ERR(file) || file->f_op == NULL
 			|| file->f_op->write == NULL) {
-			if (i < 5) {
+			if (i < 6) {
 				continue;
 			} else {
 				PRINT_ERR("no blk dev\n");
@@ -177,6 +189,10 @@ int write_storage(void *buf, int start, int size)
 
 	if (i == 2 || i == 3) {
 		mi_base = MISC_INFO_OFFSET * 2;
+	} else if (i == 6) {
+        mi_base = 0;
+        if (size > MISC_INFO_NORFLASH_SIZE)
+            size = MISC_INFO_NORFLASH_SIZE;
 	} else {
 		mi_base = MISC_INFO_OFFSET;
 	}
@@ -204,15 +220,108 @@ OUT:
 #else
 
 #define BLOCK_SIZE			512
+#define ERASE_SIZE          (4*1024)
 
 extern int LDL_DeviceOpReadSectors(unsigned int start,
 			unsigned int nsector, void *buf, int diskNo);
 extern int LDL_DeviceOpWriteSectors(unsigned int start,
 			unsigned int nsector, void *buf, int diskNo);
-extern ulong mmc_bread(int dev_num, lbaint_t start,
-			lbaint_t blkcnt, void *dst);
-extern ulong mmc_bwrite(int dev_num, lbaint_t start,
-			lbaint_t blkcnt, const void *src);
+//extern ulong mmc_bread(int dev_num, lbaint_t start,
+//			lbaint_t blkcnt, void *dst);
+//extern ulong mmc_bwrite(int dev_num, lbaint_t start,
+//			lbaint_t blkcnt, const void *src);
+
+#ifdef CONFIG_OWL_NOR
+static struct spi_flash *flash = NULL;
+static uint64_t misc_offset = 0;
+static uint64_t misc_size = 0;
+
+int parse_misc_partition(uint64_t *offset, uint64_t *size)
+{
+	fdt_addr_t addr;
+	fdt_size_t sz;
+	int node;
+
+	node = fdt_node_offset_by_compatible(gd->fdt_blob, 0, "m25p80");
+	if (!node)
+		return -1;
+	addr = fdtdec_get_addr_size(gd->fdt_blob, node, "misc-partition", &sz);
+	*offset = addr;
+	*size = sz;
+
+	return 0;
+}
+
+int owl_nor_flash_probe()
+{
+    if (flash == NULL) {
+        flash = spi_flash_probe(0, 0, 250000, (0x2|0x1));
+	    if (!flash) {
+	    	printf("SPI probe failed.\n");
+	    	return -1;
+	    }
+        if (parse_misc_partition(&misc_offset, &misc_size) != 0)
+            printf("get misc_offset & misc_info faild!\n");
+    }
+
+    return 0;
+}
+
+int owl_nor_miscblock_erase()
+{
+    int i;
+
+    if (owl_nor_flash_probe() != 0)
+        return -1;
+
+    //Erase 4KB each time, in order to compatible other nor flash.
+    for (i = 0; i < misc_size / ERASE_SIZE; i++)
+	    spi_flash_erase(flash, misc_offset + i * ERASE_SIZE, ERASE_SIZE);
+
+    return 0;
+}
+
+int owl_nor_block_read(unsigned long start,
+			unsigned int blkcnt, void *buffer)
+{
+    int ret;
+
+	if (blkcnt == 0)
+		return -1;
+
+    if (owl_nor_flash_probe() != 0)
+        return -1;
+
+    //0xe0000 is the begin of misc partition, should be read from dts.
+    ret = spi_flash_read(flash, start * BLOCK_SIZE + misc_offset, blkcnt * BLOCK_SIZE, buffer);
+    if(ret != 0){
+    	printf("spi_flash_read failed! %d\n", ret);
+    	return ret;
+    }
+
+	return blkcnt;
+}
+
+int owl_nor_block_write(unsigned long start,
+		    unsigned int blkcnt, const void *buffer)
+{
+    int ret;
+
+	if (blkcnt == 0)
+		return -1;
+
+    if (owl_nor_flash_probe() != 0)
+        return -1;
+
+    //0xe0000 is the begin of misc partition, should be read from dts.
+    ret = spi_flash_write(flash, start * BLOCK_SIZE + misc_offset, blkcnt * BLOCK_SIZE, buffer);
+    if(ret != 0){
+    	printf("spi_flash_read failed! %d\n", ret);
+    	return ret;
+    }
+	return blkcnt;
+}
+#endif
 
 static int blk_read(void *buf, unsigned int start, unsigned int blkcnt)
 {
@@ -224,10 +333,15 @@ static int blk_read(void *buf, unsigned int start, unsigned int blkcnt)
 		ret = LDL_DeviceOpReadSectors(start, blkcnt, buf, 0);
 #endif
 	} else {
-		if (strcmp(boot_dev, "mmc") == 0)
-			ret = mmc_bread(1, start, blkcnt, buf);
-		else
-			ret = -1;
+//		if (strcmp(boot_dev, "mmc") == 0)
+//			ret = mmc_bread(1, start, blkcnt, buf);
+//		else
+//			ret = -1;
+        if (strcmp(boot_dev, "nor") == 0) {
+#ifdef CONFIG_OWL_NOR
+            ret = owl_nor_block_read(start, blkcnt, buf);
+#endif
+        }
 		if (ret != blkcnt)
 			ret = -1;
 		else
@@ -246,10 +360,15 @@ static int blk_write(void *buf, unsigned int start, unsigned int blkcnt)
 		ret = LDL_DeviceOpWriteSectors(start, blkcnt, buf, 0);
 #endif
 	} else {
-		if (strcmp(boot_dev, "mmc") == 0)
-			ret = mmc_bwrite(1, start, blkcnt, buf);
-		else
-			ret = -1;
+//		if (strcmp(boot_dev, "mmc") == 0)
+//			ret = mmc_bwrite(1, start, blkcnt, buf);
+//		else
+//			ret = -1;
+        if (strcmp(boot_dev, "nor") == 0) {
+#ifdef CONFIG_OWL_NOR
+            ret = owl_nor_block_write(start, blkcnt, buf);
+#endif
+        }
 		if (ret != blkcnt)
 			ret = -1;
 		else
@@ -291,7 +410,11 @@ int read_storage(void *buf, int start, int size)
 #ifdef DUAL_EMMC
 	mi_base = MISC_INFO_OFFSET * 2;
 #else
-	mi_base = MISC_INFO_OFFSET;
+	char *boot_dev = getenv("devif");
+	if (strcmp(boot_dev, "nor") == 0)
+	    mi_base = 0;
+    else
+	    mi_base = MISC_INFO_OFFSET;
 #endif
 
 	if (start % BLOCK_SIZE != 0) {
@@ -372,7 +495,16 @@ int write_storage(void *buf, int start, int size)
 #ifdef DUAL_EMMC
 	mi_base = MISC_INFO_OFFSET * 2;
 #else
-	mi_base = MISC_INFO_OFFSET;
+	char *boot_dev = getenv("devif");
+	if (strcmp(boot_dev, "nor") == 0) {
+	    mi_base = 0;
+        //erase misc block before write.
+	#ifdef CONFIG_OWL_NOR
+        owl_nor_miscblock_erase();
+	#endif
+    }
+    else
+	    mi_base = MISC_INFO_OFFSET;
 #endif
 
 	if (start % BLOCK_SIZE != 0) {
@@ -1081,6 +1213,12 @@ static long mi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	}
+
+	if (buf) {
+		FREE(buf);
+		buf = NULL;
+	}
+
 	return ret;
 
 OUT_FAILED:

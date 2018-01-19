@@ -257,6 +257,12 @@
 #include <usb/lin_gadget_compat.h>
 #include <g_dnl.h>
 
+#ifdef SUPPORT_SET_SERIAL_NUMBER
+#include <power/atc260x/owl_atc260x.h>
+static int adfu_restart_flag;
+static void adfu_shutdown(void);
+#endif
+
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC	"Mass Storage Function"
@@ -512,6 +518,13 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 				req->status, req->actual, req->length);
 	if (req->status == -ECONNRESET)		/* Request was cancelled */
 		usb_ep_fifo_flush(ep);
+
+#ifdef SUPPORT_SET_SERIAL_NUMBER
+	if (adfu_restart_flag == 1) {
+		printf("ADFU shutdown...\n");
+		adfu_shutdown();
+	}
+#endif
 
 	/* Hold the lock while we update the request and buffer states */
 	bh->inreq_busy = 0;
@@ -1552,8 +1565,19 @@ static int do_adfu_cmd(struct fsg_common *common,
 #define SC_USB_ADFU_RESTART          0x7e
 #define SC_USB_ADFU_GET_CHIPID          0xfc
 volatile int adfu_cmd_fail_flag = 0;
-/* volatile int adfu_restart_flag = 0; */
+//volatile int adfu_restart_flag = 0;
 #define MAX_MISCINFO_LEN (1024*1024)
+
+static void adfu_shutdown(void)
+{
+	atc260x_misc_set_wakeup_src(ATC260X_WAKEUP_SRC_ALL,
+				ATC260X_WAKEUP_SRC_RESET |
+				ATC260X_WAKEUP_SRC_ONOFF_LONG |
+				ATC260X_WAKEUP_SRC_IR);
+	atc260x_misc_pwrdown_machine(0);
+
+	hang();
+}
 
 static int do_actions_set_miscinfo_cmd(struct fsg_common *common,
 				struct fsg_buffhd *bh)
@@ -1689,6 +1713,12 @@ static int check_serial_number_command(struct fsg_common *common, int cmnd_size,
 	return 0;
 }
 
+static int do_adfu_restart_cmd(struct fsg_common *common,
+				struct fsg_buffhd *bh)
+{
+	adfu_restart_flag = 1;
+	return 0;
+}
 static int do_adfu_serial_number_cmd(struct fsg_common *common,
 				struct fsg_buffhd *bh)
 {
@@ -1696,7 +1726,6 @@ static int do_adfu_serial_number_cmd(struct fsg_common *common,
 	int ret;
 
 	switch (common->cmnd[1]) {
-/*
 	case SC_USB_ADFU_RESTART:
 		common->data_size_from_cmnd = 0;
 		reply = check_serial_number_command(common, 7,
@@ -1705,7 +1734,7 @@ static int do_adfu_serial_number_cmd(struct fsg_common *common,
 		if (reply == 0)
 			reply = do_adfu_restart_cmd(common, bh);
 		break;
-
+/*
 	case SC_USB_ADFU_SET_SERIAL_NUMBER:
 		common->data_size_from_cmnd = get_le32(&common->cmnd[3]);
 		reply = check_serial_number_command(common, 7,

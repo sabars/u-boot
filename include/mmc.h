@@ -304,7 +304,7 @@ struct mmc_ops {
 };
 
 struct mmc_config {
-	const char *name;
+	char *name;
 	const struct mmc_ops *ops;
 	uint host_caps;
 	uint voltages;

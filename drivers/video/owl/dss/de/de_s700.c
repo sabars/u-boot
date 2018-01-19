@@ -558,7 +558,7 @@ static void __video_scaling_set(struct owl_de_video *video,
 
 	/*
 	 * scaler0 is for macro layer 0.
-	 * S700 not OTT(LCD+HDMI), scaler1 is for macro layer 3
+	 * S700 not OTT(LCD+HDMI), scaler1 is for macro layer 2
 	 * others, scaler1 is for macro layer 1
 	 */
 #if defined(CONFIG_VIDEO_OWL_DE_S700) && !defined(CONFIG_VIDEO_OWL_DE_S700_OTT)

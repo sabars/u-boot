@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2015 Actions Semi Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+#include "ats3605.dtsi"
+
+/ {
+	model = "ats3605 evb";
+	compatible ="actions,ats3605";
+
+	chosen {
+		stdout-path = &serial5;
+	};
+
+	clock:b0150000 {
+		compatible = "actions,owl-clk";
+		core_pll = <600>;
+		dev_pll = <300>;
+		display_pll = <480>;
+	};
+
+	usb2h0: usb@b0240000 {
+		id = <0>;
+		usbecs = <0xb0158090>;
+		vbus-gpio = <&gpiob 9 0>;
+		status = "disabled";
+	};
+
+	usb2h1: usb@b0250000 {
+		id = <1>;
+		usbecs = <0xb0158094>;
+		status = "okay";
+	};
+};

@@ -438,6 +438,7 @@ static const struct dm_i2c_ops owl_i2c_ops = {
 static const struct udevice_id owl_i2c_ids[] = {
 	{ .compatible = "actions,s900-i2c"},
 	{ .compatible = "actions,s700-i2c"},
+	{ .compatible = "actions,ats3605-i2c"},
 	{ }
 };
 

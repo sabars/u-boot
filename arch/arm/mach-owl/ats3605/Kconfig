@@ -1,0 +1,37 @@
+if ATS3605
+
+choice
+	prompt "ATS3605 board select"
+	optional
+
+config TARGET_ATS3605_UPGRADE
+	bool "Actions ATS3605 upgrade"
+	help
+	  Directly jump kernel/initramfs that already download to ddr by
+	  production tool. Only used for burn firmware.
+
+config TARGET_LS370A_EVB
+	bool "Actions LS370A_evb slc nandflash board"
+
+config TARGET_ATS3605_EVB_MLC
+	bool "Actions ats3605_evb mlc nandflash board"
+
+config TARGET_LS360F_EVB
+	bool "Actions ls360f_evb board spi norflash"
+
+config TARGET_HOBOT_EVB
+	bool "Actions hotbot_evb slc nandflash board"
+
+config TARGET_LS360F_EVB_LCD
+	bool "Actions ls360f_evb lcd  board spi norflash"
+
+endchoice
+
+source "board/actions/ats3605_upgrade/Kconfig"
+source "board/actions/ls370a_evb/Kconfig"
+source "board/actions/ats3605_evb_mlc/Kconfig"
+source "board/actions/ls360f_evb/Kconfig"
+source "board/actions/hobot_evb/Kconfig"
+source "board/actions/ls360f_evb_lcd/Kconfig"
+
+endif

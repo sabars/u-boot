@@ -11,6 +11,10 @@ config S900
 config S700
 	bool "S700 family"
 	select ARM64
+
+config ATS3605
+	bool "ATS3605 family"
+	select CPU_V7
 endchoice
 
 config SYS_SOC
@@ -21,5 +25,6 @@ config SYS_MALLOC_F_LEN
 
 source "arch/arm/mach-owl/s900/Kconfig"
 source "arch/arm/mach-owl/s700/Kconfig"
+source "arch/arm/mach-owl/ats3605/Kconfig"
 
 endif

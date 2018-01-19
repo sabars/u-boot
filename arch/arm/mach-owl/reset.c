@@ -57,8 +57,11 @@ static int owl_perip_to_reset_id(int perip_id)
 		return RESET_UART4;
 	case PERIPH_ID_UART5:
 		return RESET_UART5;
-	case PERIPH_ID_UART6:
-		return RESET_UART6;
+	//case PERIPH_ID_UART6:
+	//	return RESET_UART6;
+
+	case PERIPH_ID_SPI0:
+		return RESET_SPI0;
 
 	case PERIPH_ID_I2C0:
 		return RESET_I2C0;
@@ -66,8 +69,8 @@ static int owl_perip_to_reset_id(int perip_id)
 		return RESET_I2C1;
 	case PERIPH_ID_I2C2:
 		return RESET_I2C2;
-	case PERIPH_ID_I2C3:
-		return RESET_I2C3;
+	//case PERIPH_ID_I2C3:
+	//	return RESET_I2C3;
 #if defined(CONFIG_S900)
 	case PERIPH_ID_I2C4:
 		return RESET_I2C4;

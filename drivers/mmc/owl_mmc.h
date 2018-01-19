@@ -5,6 +5,8 @@
 #include <owl_mmc_s900.h>
 #elif defined(CONFIG_S700)
 #include <owl_mmc_s700.h>
+#elif defined(CONFIG_ATS3605)
+#include <owl_mmc_ats3605.h>
 #else
 #error Unknown SoC type
 #endif
@@ -77,6 +79,10 @@
 #define SD_BLK_SIZE_OFFSET		0x002c
 #define SD_BLK_NUM_OFFSET		0x0030
 #define SD_BUF_SIZE_OFFSET		0x0034
+/* ATS3605 */
+#define SD_DMA_ADDRESS_OFFSET	0x0034
+#define SD_DMA_CTL_OFFSET		0x0038
+
 #define HOST_EN(h)				((h)->iobase + SD_EN_OFFSET)
 #define HOST_CTL(h)				((h)->iobase + SD_CTL_OFFSET)
 #define HOST_STATE(h)			((h)->iobase + SD_STATE_OFFSET)
@@ -89,8 +95,12 @@
 #define HOST_RSPBUF4(h)			((h)->iobase + SD_RSPBUF4_OFFSET)
 #define HOST_DAT(h)				((h)->iobase + SD_DAT_OFFSET)
 #define HOST_BLK_SIZE(h)		((h)->iobase + SD_BLK_SIZE_OFFSET)
-#define HOST_BLK_NUM(h)		((h)->iobase + SD_BLK_NUM_OFFSET)
+#define HOST_BLK_NUM(h)			((h)->iobase + SD_BLK_NUM_OFFSET)
 #define HOST_BUF_SIZE(h)		((h)->iobase + SD_BUF_SIZE_OFFSET)
+/* ATS3605 */
+#define HOST_DMA_ADDR(h)		((h)->iobase + SD_DMA_ADDRESS_OFFSET)
+#define HOST_DMA_CTL(h)			((h)->iobase + SD_DMA_CTL_OFFSET)
+
 /*
  * Register SD_EN
  */
@@ -203,6 +213,7 @@ struct owl_mmc_host {
 	struct owl_dma_dev *dma_channel;
 	u16 dma_dir;
 	char pad_drv;
+	u8   init_ok;  /*host init, 1 init ok, 0 init error */
 	struct mmc_con_delay wdelay;
 	struct mmc_con_delay rdelay;
 

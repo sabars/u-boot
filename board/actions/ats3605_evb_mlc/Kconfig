@@ -1,0 +1,12 @@
+if TARGET_ATS3605_EVB_MLC
+
+config SYS_BOARD
+	default "ats3605_evb_mlc"
+
+config SYS_VENDOR
+	default "actions"
+
+config SYS_CONFIG_NAME
+	default "ats3605_evb_mlc"
+
+endif

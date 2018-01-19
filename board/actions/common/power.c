@@ -13,6 +13,12 @@
 
 static int g_power_status = -1;
 
+
+__weak int owl_usb_get_connect_type(void)
+{
+	return 0;
+}
+
 #ifdef CONFIG_S900
 static void enable_usb3_avdd(void)
 {
@@ -38,7 +44,7 @@ static int __get_power_status(void)
 	unsigned int value;
 
 	bat_online = power_battery_check_online();
-	printf("[%s]:bat_online:%d\n", __func__, bat_online);
+	printf("bat_online:%d\n",  bat_online);
 	if (bat_online < 0)
 		return POWER_EXCEPTION;
 
@@ -49,7 +55,7 @@ static int __get_power_status(void)
 
 	charger_online = atc260x_charger_check_online();
 	bat_pwr = power_battery_check_pwr();
-	printf("[%s]:charger_online:%d,bat_pwr:%d\n", __func__, charger_online, bat_pwr);
+	printf("charger_online:%d,bat_pwr:%d\n",  charger_online, bat_pwr);
 	/* adapter is offline */
 	if (charger_online == ADAPTER_TYPE_NO_PLUGIN) {
 		if (bat_pwr == BAT_PWR_HIGH)
@@ -64,7 +70,7 @@ static int __get_power_status(void)
 
 	/* adapter is online */
 	atc260x_pstore_get(ATC260X_PSTORE_TAG_DIS_MCHRG, &value);
-	printf("[%s]:dis_mchrg:%d\n", __func__, value);
+	printf("dis_mchrg:%d\n",  value);
 	if (value) {
 		/*if onoff 3s restart, leave minicharge*/
 		atc260x_pstore_set(ATC260X_PSTORE_TAG_DIS_MCHRG, 0);
@@ -145,12 +151,13 @@ int owl_check_power(void)
 int owl_power_init(void)
 {
 	int ret;
-
+#ifdef  CONFIG_DM_PMIC_ATC260X
 	ret = owl_pmic_init();
 	if (ret) {
 		printf(" PMU Not Initilize\n ");
 		return ret;
 	}
+#endif
 #ifdef CONFIG_S900
 	enable_usb3_avdd();
 #endif
@@ -172,7 +179,9 @@ int owl_power_init(void)
 #endif
 
 	owl_init_power_status();
-
+#ifdef CONFIG_HARD_POWERKEY
+	hardkey_init();
+#endif
 	return 0;
 }
 

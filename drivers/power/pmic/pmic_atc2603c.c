@@ -327,21 +327,23 @@ int owl_pmic_init(void)
 		    malloc(MAX_NAME_LENGTH * sizeof(char));
 		strcpy(autoset_regulators[time], uc_pdata->name);
 		time++;
-
 	}
+
 	autoset_regulators[time] = NULL;
 	if (regulator_list_autoset
 	    ((const char **)autoset_regulators, NULL, false))
 		error("Unable to init all mmc regulators");
 
+#ifdef OWL_PMU_DBG
 	ret = 0;
-
 	while (check_reg[ret] != ATC2603C_PMU_BASE) {
 		pmic_read(*devp, check_reg[ret], (uint8_t *) buf, 2);
 		pmu_dbg("0x%x:0x%x\n", check_reg[ret], (buf[0] << 8) | buf[1]);
 		ret++;
 	}
-#if 1
+#endif
+
+#ifdef CONFIG_PWM_OWL
 	pmu_config.total_steps = fdtdec_get_int(blob, node, "total_steps", 0);
 	if(pmu_config.total_steps) {
 

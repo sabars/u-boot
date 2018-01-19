@@ -27,7 +27,8 @@ const struct spi_flash_params spi_flash_params_table[] = {
 #ifdef CONFIG_SPI_FLASH_EON		/* EON */
 	{"EN25Q32B",	   0x1c3016, 0x0,	64 * 1024,    64, RD_NORM,			  0},
 	{"EN25Q64",	   0x1c3017, 0x0,	64 * 1024,   128, RD_NORM,		    SECT_4K},
-	{"EN25Q128B",	   0x1c3018, 0x0,       64 * 1024,   256, RD_NORM,			  0},
+	{"EN25Q128B",	   0x1c3018, 0x0,       64 * 1024,   256, RD_FULL,		SECT_4K},
+	{"EN25QH128A",	   0x1c7018, 0x0,       64 * 1024,   256, RD_FULL,		SECT_4K},
 	{"EN25S64",	   0x1c3817, 0x0,	64 * 1024,   128, RD_NORM,			  0},
 #endif
 #ifdef CONFIG_SPI_FLASH_GIGADEVICE	/* GIGADEVICE */
@@ -41,7 +42,7 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"MX25L1605D",	   0xc22015, 0x0,	64 * 1024,    32, RD_NORM,			  0},
 	{"MX25L3205D",	   0xc22016, 0x0,	64 * 1024,    64, RD_NORM,			  0},
 	{"MX25L6405D",	   0xc22017, 0x0,	64 * 1024,   128, RD_NORM,			  0},
-	{"MX25L12805",	   0xc22018, 0x0,	64 * 1024,   256, RD_FULL,		     WR_QPP},
+	{"MX25L12805",	   0xc22018, 0x0,	64 * 1024,   256, RD_FULL,		     WR_QPP | SECT_4K},
 	{"MX25L25635F",	   0xc22019, 0x0,	64 * 1024,   512, RD_FULL,		     WR_QPP},
 	{"MX25L51235F",	   0xc2201a, 0x0,	64 * 1024,  1024, RD_FULL,		     WR_QPP},
 	{"MX25L12855E",	   0xc22618, 0x0,	64 * 1024,   256, RD_FULL,		     WR_QPP},
