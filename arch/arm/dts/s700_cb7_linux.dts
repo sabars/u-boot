@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "s700.dtsi"
-#include "s700_panel_rgb_lvds.dtsi"
+/* #include "s700_panel_rgb_lvds.dtsi" */
 /* #include "s700_panel_mipi.dtsi" */
 / {
 	model = "s700 upgrade";
@@ -159,26 +159,26 @@
 		delay_af_pwm = <20>; /*in ms*/
 	};
 	
-	//hdmi@e02c0000 {
-	//	channel_invert = <0>;
-	//	bit_invert = <0>;
-	//
-	//	panel@ghp {
-	//		compatible = "actions,panel-ghp";
-	//
-	//		is_primary = <1>;
-        //
-	//		videomode-0 = <&default_mode>;
-        //
-	//		/* default mode used when EDID read error */
-	//		default_mode: videomode {
-	//			refresh_rate = <60>;
-        //
-	//			xres = <1280>;
-	//			yres = <720>;
-	//		};
-	//	};
-	//};
+	hdmi@e02c0000 {
+		channel_invert = <0>;
+		bit_invert = <0>;
+	
+		panel@ghp {
+			compatible = "actions,panel-ghp";
+	
+			is_primary = <1>;
+        
+			videomode-0 = <&default_mode>;
+        
+			/* default mode used when EDID read error */
+			default_mode: videomode {
+				refresh_rate = <60>;
+        
+				xres = <1280>;
+				yres = <720>;
+			};
+		};
+	};
 
 	usb2h0: usb@e01d0000 {
 		id = <0>;
