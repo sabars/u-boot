@@ -16,7 +16,7 @@
 					"bootdisk=1\0"
 
 #define CONFIG_BOOTCOMMAND		"run emmcboot;"
-#define CONFIG_BOOTDELAY		0	/* autoboot after 1 seconds */
+#define CONFIG_BOOTDELAY		1	/* autoboot after 1 seconds */
 
 #define CONFIG_PWM_OWL
 #define CONFIG_BOOTDEV_AUTO
