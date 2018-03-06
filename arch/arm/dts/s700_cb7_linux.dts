@@ -120,14 +120,14 @@
 		};
 		atc2603c-battery{
 			compatible = "actions,atc2603c-battery";
-			capacity = <4000>;/*unit:mAh*/
+			capacity = <5300>;/*unit:mAh*/
 			shutdown_current = <50>;/*unit:ua*/
 		};
 		atc2603c-charger{
 			compatible = "actions,atc2603c-charger";
 			rsense = <20>;/*unit:mohm*/
 			support_adaptor_type = <3>; /*1: DCIN  2: USB  3:DCIN+USB*/
-			usb_pc_ctl_mode = <1>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
+			usb_pc_ctl_mode = <2>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
 			wall_switch = <&gpioa 25 0>;/*GPIOA25,0: high, 1: low*/
 		};
 
