@@ -24,7 +24,7 @@ dtb-$(CONFIG_S700) += s700_upgrade.dtb s700_roseapplepi_upgrade.dtb s700_gb7_wxg
 			s700_roseapplepi.dtb gt7_ebox.dtb gt7_ebox_m8s.dtb gt7_qcb.dtb gt7_upgrade.dtb \
 			s700_evb.dtb v700_gb7_nibiru.dtb v700_cxvr.dtb v700_cxvr_sd.dtb \
 			v700_qcb_mipi.dtb v700_qcb_lvds.dtb s700_cb7.dtb s700_cb7_linux.dtb \
-			s700_cb7_sd.dtb s700_qcb_lvds.dtb
+			s700_cb7_sd.dtb s700_qcb_lvds.dtb s700_cubieaio_linux.dtb 
 
 dtb-$(CONFIG_ATS3605) += ats3605_upgrade.dtb ls370a_evb.dtb ls360f_evb.dtb ats3605_evb_mlc.dtb  hobot_evb.dtb ls360f_evb_lcd.dtb
 
