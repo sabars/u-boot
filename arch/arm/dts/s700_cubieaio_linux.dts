@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "s700.dtsi"
-/* #include "s700_panel_rgb_lvds.dtsi" */
+#include "s700_panel_rgb_lvds.dtsi" 
 /* #include "s700_panel_mipi.dtsi" */
 / {
 	model = "s700 upgrade";
@@ -143,20 +143,20 @@
 	backlight {
 		compatible = "actions,s700-pwm-backlight";
 
-		/* GPIOD28, active high */
-		en-gpios = <&gpiod 28 1>;
+		/* GPIOA24, active high */
+		en-gpios = <&gpioa 24 0>;
 
 		/*1.pwm num; 2. period in ns; */
 		/*3.plarity, 0: high active, 1: low active*/
-		pwms = <&pwm 0 50000 1>;
+		pwms = <&pwm 0 100000 1>;
 
 		total_steps = <1024>;
-		min_brightness = <100>;
-		max_brightness = <1000>;
-		dft_brightness = <500>;
+		min_brightness = <214>;
+		max_brightness = <1024>;
+		dft_brightness = <900>;
 
-		delay_bf_pwm = <0>; /*in ms*/
-		delay_af_pwm = <20>; /*in ms*/
+		delay_bf_pwm = <200>; /*in ms*/
+		delay_af_pwm = <10>; /*in ms*/
 	};
 	
 	hdmi@e02c0000 {
