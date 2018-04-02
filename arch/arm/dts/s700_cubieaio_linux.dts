@@ -166,7 +166,7 @@
 		panel@ghp {
 			compatible = "actions,panel-ghp";
 	
-			is_primary = <1>;
+			is_primary = <0>;
         
 			videomode-0 = <&default_mode>;
         
