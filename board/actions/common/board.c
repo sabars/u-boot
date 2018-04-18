@@ -405,7 +405,7 @@ int boot_modify_eth_mac_dts(void *fdt)
 }
 int ft_board_setup(void *blob, bd_t *bd)
 {
-	boot_modify_eth_mac_dts(blob);
+	//boot_modify_eth_mac_dts(blob);
 	fdt_fixup_bootargs(blob);
 	boot_append_serialno(blob);
 
