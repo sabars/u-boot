@@ -139,13 +139,13 @@ static int lcdc_parse_config(const void *blob, int node,
  * index is register value(0~11),
  */
 #define DIV_ROUND(x, y) (((x) + ((y) / 2)) / y)
-#define DIVIDER_TABLE_LEN	(22)
+#define DIVIDER_TABLE_LEN	(24)
 static unsigned int lcdclk_divider_table[DIVIDER_TABLE_LEN] = {
 	/* bit0 ~ 3 */
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 
 	/* bit8: /7 */
-	1*7, 2*7, 3*7, 4*7, 5*7, 6*7, 7*7, 8*7, 9*7, 10*7,
+	1*7, 2*7, 3*7, 4*7, 5*7, 6*7, 7*7, 8*7, 9*7, 10*7,11*7,12*7,
 };
 
 
@@ -179,6 +179,21 @@ static unsigned int lcdc_get_display_pll(struct lcdc_data *lcdc)
 	else
 		error("get display pll failed!\n");
 }
+
+static unsigned int lcdc_get_devclk(struct lcdc_data *lcdc)
+{
+	unsigned int val, tmp;
+
+	tmp = readl(CMU_DEVPLL);
+	val = (tmp & 0x7f) * 6;
+
+	if (tmp & (1 << 8))
+		return val;
+	else
+		error("get dev clk failed!\n");
+}
+
+
 static void lcdc_clk_enable(struct lcdc_data *lcdc)
 {
 	unsigned int tmp, parent_clk;
@@ -192,10 +207,18 @@ static void lcdc_clk_enable(struct lcdc_data *lcdc)
 	/* enable lcdclk from devpll */
 	owl_clk_enable(CLOCK_LCD0);
 
-	parent_clk = lcdc_get_display_pll(lcdc);
+
 	tmp = 0;
 	if (lcdc->configs.pclk_parent == 0) {	/* DISPLAY_PLL */
+		parent_clk = lcdc_get_display_pll(lcdc);
 		tmp |= (0 << 12);
+		div = lcdclk_get_divider(parent_clk * 1000000,lcdc->configs.pclk_rate);
+		tmp |= div % LCD0CLK_DVI_MAX;
+		if (div > LCD0CLK_DVI_MAX)
+			tmp |= 1 << 8;
+	} else if(lcdc->configs.pclk_parent == 1){
+		parent_clk = lcdc_get_devclk(lcdc);
+		tmp |= (1 << 12);
 		div = lcdclk_get_divider(parent_clk * 1000000,lcdc->configs.pclk_rate);
 		tmp |= div % LCD0CLK_DVI_MAX;
 		if (div > LCD0CLK_DVI_MAX)
@@ -480,6 +503,9 @@ int owl_lcdc_init(const void *blob)
 	}
 	debug("%s: base is 0x%llx\n", __func__, lcdc->base);
 
+	ret = lcdc_parse_config(blob, node, lcdc);
+	if (ret < 0)
+		goto err_parse_config;
 	if (lcdc->configs.port_type == LCD_PORT_TYPE_LVDS){
 		pinmux_select(PERIPH_ID_LVDS, 0);
 	} else if (lcdc->configs.port_type == LCD_PORT_TYPE_RGB) {
@@ -489,9 +515,7 @@ int owl_lcdc_init(const void *blob)
 		return -1;
 	}
 
-	ret = lcdc_parse_config(blob, node, lcdc);
-	if (ret < 0)
-		goto err_parse_config;
+
 
 	lcdc->ctrl = &owl_lcd_ctrl;
 	owl_ctrl_set_drvdata(&owl_lcd_ctrl, lcdc);
