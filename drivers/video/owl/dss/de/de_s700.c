@@ -24,6 +24,9 @@ static struct owl_de_device	owl_de_s700;
 #define de_readl(idx)		readl(owl_de_s700.base + (idx))
 #define de_writel(val, idx)	writel(val, owl_de_s700.base + (idx))
 
+int	ml_id_for_scaler0;
+int	ml_id_for_scaler1;
+
 /*===================================================================
  *			S700 DE path
  *==================================================================*/
@@ -556,20 +559,14 @@ static void __video_scaling_set(struct owl_de_video *video,
 	debug("%s: video %d, %dx%d->%dx%d\n", __func__, video->id,
 	      width, height, out_width, out_height);
 
-	/*
-	 * scaler0 is for macro layer 0.
-	 * S700 not OTT(LCD+HDMI), scaler1 is for macro layer 2
-	 * others, scaler1 is for macro layer 1
-	 */
-#if defined(CONFIG_VIDEO_OWL_DE_S700) && !defined(CONFIG_VIDEO_OWL_DE_S700_OTT)
-	if (video->id != 0 && video->id != 3)
-#else
-	if (video->id > 1)
-#endif
+	if (video->id != ml_id_for_scaler0 &&
+		video->id != ml_id_for_scaler1) {
+		BUG();
 		return;
+	}
 
 	ml_id = video->id;		/* get macro layer ID */
-	scaler_id = (video->id == 0 ? 0 : 1);
+	scaler_id = (video->id == ml_id_for_scaler0 ? 0 : 1);
 
 	w_factor = (width * 8192 +  out_width - 1) / out_width;
 	h_factor = (height * 8192 + out_height - 1) / out_height;
@@ -855,6 +852,14 @@ int owl_de_s700_init(const void *blob)
 
 	owl_de_s700.blob = blob;
 	owl_de_s700.node = node;
+
+	ml_id_for_scaler0 = fdtdec_get_int(blob, node,
+					"video_id_for_scaler0", 0);
+	ml_id_for_scaler1 = fdtdec_get_int(blob, node,
+					"video_id_for_scaler1", 3);
+
+	debug("%s, ml_id_for_scaler0: %d, ml_id_for_scaler1: %d;\n",
+			__func__, ml_id_for_scaler0, ml_id_for_scaler1);
 
 	owl_de_register(&owl_de_s700);
 

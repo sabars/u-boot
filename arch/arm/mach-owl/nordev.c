@@ -28,7 +28,7 @@ struct owl_block_dev {
 };
 
 static struct owl_block_dev nor_dev[NOR_MAX_DEV_NUM];
-static struct spi_flash *flash = NULL;
+struct spi_flash *flash = NULL;
 static uint64_t system_offset = 0;
 static uint64_t system_size = 0;
 

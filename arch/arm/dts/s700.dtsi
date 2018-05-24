@@ -10,6 +10,7 @@
 	#size-cells = <2>;
 
 	aliases {
+		serial0 = &serial0;
 		serial2 = &serial2;
 		serial3 = &serial3;
 		serial5 = &serial5;

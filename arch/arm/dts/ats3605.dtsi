@@ -89,4 +89,27 @@
 		compatible = "actions,ats3605-usb2.0-1";
 		reg = <0xb0250000 0x1000>;
 	};
+
+	pwm@b01c0000 {
+		compatible = "actions,ats3605-pwm";
+		reg = <0xb01c0000 0x1000>;
+		#pwm-cells = <2>;
+	};
+
+	de@b02f0000 {
+		compatible = "actions,ats3605-de";
+		reg = <0xb02f0000 0x4078>;
+	};
+
+	lcd@b02a0000 {
+		compatible = "actions,ats3605-lcd";
+		reg = <0xb02a0000 0x208>;
+	};
+
+	hdmi@b02c0000 {
+		compatible = "actions,ats3605-hdmi";
+		reg = <0xb02c0000 0x15c>;
+	};
+
+
 };

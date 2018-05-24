@@ -1,0 +1,12 @@
+if TARGET_LS360F_NAND_ZXF86
+
+config SYS_BOARD
+	default "ls360f_nand_zxf86"
+
+config SYS_VENDOR
+	default "actions"
+
+config SYS_CONFIG_NAME
+	default "ls360f_nand_zxf86"
+
+endif

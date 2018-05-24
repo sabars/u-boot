@@ -34,6 +34,7 @@
 #define DIV_ROUND(x, y) (((x) + (y)-1) / (y))
 #endif
 
+#define PWM_CHIP_ID_ATS3605	(0)
 #define PWM_CHIP_ID_S700	(1)
 #define PWM_CHIP_ID_S900	(2)
 
@@ -271,8 +272,13 @@ int owl_pwm_init(const void *blob)
 		chip.node = fdt_node_offset_by_compatible(blob, 0,
 							  "actions,s700-pwm");
 		if (chip.node < 0) {
-			error("no match in DTS\n");
-			return -1;
+			chip.node = fdt_node_offset_by_compatible(blob, 0,
+								  "actions,ats3605-pwm");
+			if (chip.node < 0) {
+				error("no match in DTS\n");
+				return -1;
+			} else
+				chip.chip_id = PWM_CHIP_ID_ATS3605;
 		} else {
 			chip.chip_id = PWM_CHIP_ID_S700;
 		}

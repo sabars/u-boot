@@ -8,3 +8,4 @@
 
 obj-$(CONFIG_VIDEO_OWL_DE_S900) += de_s900.o
 obj-$(CONFIG_VIDEO_OWL_DE_S700) += de_s700.o
+obj-$(CONFIG_VIDEO_OWL_DE_ATS3605) += de_ats3605.o

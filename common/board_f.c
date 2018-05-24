@@ -350,6 +350,10 @@ static int setup_dest_addr(void)
 		debug("Reserving MP boot page to %08lx\n", gd->relocaddr);
 	}
 #endif
+#if defined(CONFIG_S700)
+	if (gd->relocaddr <= 0x20000000) //reserve 0x1f000000-0x20000000 for arm-turst-firmware
+		gd->relocaddr = gd->relocaddr - 0x1000000;
+#endif
 	return 0;
 }
 

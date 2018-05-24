@@ -19,7 +19,7 @@
 	clock:e0168000 {
 		compatible = "actions,owl-clk";
 		core_pll = <600>;
-		dev_pll = <300>;
+		dev_pll = <600>;
 		display_pll = <480>;
 	};
 

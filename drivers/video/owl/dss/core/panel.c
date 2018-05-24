@@ -253,12 +253,12 @@ int owl_panel_enable(struct owl_panel *panel)
 	owl_ctrl_power_on(panel->ctrl);
 
 
+	/* controller enable */
+	owl_ctrl_enable(panel->ctrl);
+
 	/* panel enable */
 	if (desc->ops && desc->ops->enable)
 		desc->ops->enable(panel);
-
-	/* controller enable */
-	owl_ctrl_enable(panel->ctrl);
 
 	if (desc->enable_delay > 0)
 		mdelay(desc->enable_delay);
@@ -342,6 +342,17 @@ enum owl_display_type owl_panel_get_type(struct owl_panel *panel)
 int owl_panel_get_preline_num(struct owl_panel *panel)
 {
 	return (panel == NULL ? 0 : panel->desc.preline_num);
+}
+
+int owl_panel_refresh_frame(struct owl_panel *panel)
+{
+	struct owl_display_ctrl *ctrl = panel->ctrl;
+	
+	/* refresh one frame */
+	if (ctrl->ops && ctrl->ops->refresh_frame)
+		ctrl->ops->refresh_frame(ctrl);
+	
+	return 0;
 }
 
 /*

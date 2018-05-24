@@ -16,7 +16,7 @@
 #define RESET_SD1				5
 #define RESET_PCM1				6
 #define RESET_DE				7
-#define RESET_LCD				8
+#define RESET_LCD0				8
 #define RESET_SD2				9
 #define RESET_SI					12
 #define RESET_KEY				14

@@ -332,7 +332,12 @@ static void owl_i2c_set_freq(struct owl_i2c_bus *i2c_bus)
 
 	if (i2c_bus->speed == 0)
 		i2c_bus->speed = 400000;
+#if defined(CONFIG_S900)
 	pclk = 100000000;
+#else
+	pclk = 24000000;
+#endif
+	//printf("i2c%d, clk=%d\n", i2c_bus->id, i2c_bus->speed);
 	div_factor = (pclk + i2c_bus->speed * 16 - 1) / (i2c_bus->speed * 16);
 	writel(I2C_CLKDIV_DIV(div_factor), &i2c_bus->regs->clkdiv);
 }

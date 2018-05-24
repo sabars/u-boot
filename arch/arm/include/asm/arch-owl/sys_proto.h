@@ -20,6 +20,7 @@ int owl_bootdev_env(void);
 void kernel_cmdline_add(char * cmd);
 
 #ifdef CONFIG_ATS3605_BOOTPARA
+void ats3605_bootpara_first_init(void);
 void ats3605_bootpara_init(void);
 void ats3605_get_serial(char *buf,  int len);
 #endif

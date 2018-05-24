@@ -14,10 +14,7 @@ int board_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_BOOTDEV_AUTO
-	owl_bootdev_init();
-#endif
-	owl_clk_init();
+	owl_board_first_init();
 #ifdef CONFIG_PWM_OWL
 	owl_pwm_init(gd->fdt_blob);
 #endif

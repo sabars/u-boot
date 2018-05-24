@@ -57,6 +57,15 @@ struct lcdc_config {
 	uint32_t		lvds_bit_mapping; 	/* 0: NS Mode; 1: JEIDA Mode */
 	uint32_t		lvds_ch_swap;  		/* 0: No Swap; 1: Odd/Even Swap */
 	uint32_t		lvds_mirror;  		/* 0: normal; 1: mirror */
+	
+	/* properties for cpu port */
+	uint32_t		cpu_format;  		/* 0: 16 bit RGB 565 1 transfer; 
+							 * 1: 18 bit RGB 666 1 transfer
+							 * 2:  8 bit RGB 565 2 transfer
+							 * 3:  9 bit RGB 666 2 transfer
+							 * 4:  8 bit RGB 888 3 transfer
+							 * 5:  6 bit RGB 666 3 transfer
+							 */
 };
 
 struct lcdc_data {
@@ -112,6 +121,10 @@ static int lcdc_parse_config(const void *blob, int node,
 	lcdc->configs.lvds_mirror
 		= fdtdec_get_int(blob, entry, "lvds_mirror", 0);
 
+	/* cpu port properties */
+	lcdc->configs.cpu_format
+		= fdtdec_get_int(blob, entry, "cpu_format", 0);
+	
 	lcdc->configs.pclk_parent
 		= fdtdec_get_int(blob, entry, "pclk_parent", 0);
 	lcdc->configs.pclk_rate
@@ -127,6 +140,8 @@ static int lcdc_parse_config(const void *blob, int node,
 	      lcdc->configs.vsync_inversion, lcdc->configs.hsync_inversion);
 	debug("dclk_inversion %d, lde_inversion %d\n",
 	      lcdc->configs.dclk_inversion, lcdc->configs.lde_inversion);
+	
+	debug("cpu_format %d\n", lcdc->configs.cpu_format);
 
 	debug("pclk_parent %d pclk_rate %d\n",
 	      lcdc->configs.pclk_parent, lcdc->configs.pclk_rate);
@@ -179,7 +194,6 @@ static unsigned int lcdc_get_display_pll(struct lcdc_data *lcdc)
 	else
 		error("get display pll failed!\n");
 }
-
 static unsigned int lcdc_get_devclk(struct lcdc_data *lcdc)
 {
 	unsigned int val, tmp;
@@ -192,8 +206,6 @@ static unsigned int lcdc_get_devclk(struct lcdc_data *lcdc)
 	else
 		error("get dev clk failed!\n");
 }
-
-
 static void lcdc_clk_enable(struct lcdc_data *lcdc)
 {
 	unsigned int tmp, parent_clk;
@@ -245,6 +257,25 @@ static void lcdc_clk_disable(struct lcdc_data *lcdc)
 	owl_clk_disable(CLOCK_LCD0);
 
 	writel(0, CMU_LCDCLK);
+}
+
+static void lcdc_set_interface_type(struct lcdc_data *lcdc, int interface_type)
+{
+	uint32_t val;
+
+	val = lcdc_readl(lcdc, LCDC_CTL);
+	val = REG_SET_VAL(val, interface_type, 31, 31);
+	lcdc_writel(lcdc, LCDC_CTL, val);
+}
+
+
+static void lcdc_set_cpu_format(struct lcdc_data *lcdc)
+{
+	uint32_t val;
+	
+	val = lcdc_readl(lcdc, LCDC_CPU_CTL);
+	val = REG_SET_VAL(val, lcdc->configs.cpu_format, 6, 4);
+	lcdc_writel(lcdc, LCDC_CPU_CTL, val);
 }
 
 static void lcdc_set_size(struct lcdc_data *lcdc,
@@ -371,6 +402,58 @@ static void lcdc_single_enable(struct lcdc_data *lcdc, bool enable)
 	lcdc_writel(lcdc, LCDC_CTL, val);
 }
 
+/*****************************************************************************
+* \par  Description:
+*   set IC as commond mode; but rs pin can be change;
+* \note
+    IC is commond mode; 
+    RS is 0: cmd mode, used to write the register index
+    RS is 1: val mode, used to write the register val
+*******************************************************************************/
+void lcd_send_cmd(struct lcdc_data *lcdc,
+			unsigned int rs, unsigned int cmd)
+{
+	unsigned int tmp = 0;
+	
+	debug("%s, rs %d, cmd 0x%x\n", __func__, rs, cmd);
+	
+	lcdc_writel(lcdc, LCDC_CPU_CMD, cmd);
+
+	tmp = lcdc_readl(lcdc, LCDC_CPU_CTL);
+	if (0 == rs) {
+		tmp &= ~(0x01<<10);     /* RS low */
+	} else {
+		tmp |= (0x01<<10);      /* RS high */
+	}
+	
+	tmp &= ~(0x03<<8);          /* write cmd */
+	tmp |= (0x01<<0);           /* start transmission */
+	lcdc_writel(lcdc, LCDC_CPU_CTL, tmp);
+	udelay(1);
+}
+
+static void lcdc_cpu_port_refresh_frame(struct lcdc_data *lcdc)
+{
+	uint32_t val;
+	int times = 3000;/* Recommended 30ms */
+	
+	val = lcdc_readl(lcdc, LCDC_CPU_CTL);
+	val = REG_SET_VAL(val, 0x1, 10, 10); /* RS high for transfering RGB data  */
+	val = REG_SET_VAL(val, 0x2, 9, 8); /* RGB data transfor select */
+	val = REG_SET_VAL(val, 0x1, 0, 0); /* start transmission */
+	lcdc_writel(lcdc, LCDC_CPU_CTL, val);
+
+	/* Start data transfer until DE signal is reached, and bit is cleaned */
+	do {
+		mdelay(1);
+		val = (0x01 & (lcdc_readl(lcdc, LCDC_CPU_CTL)));
+		times--;
+	} while((val != 0) && (times > 0));
+	
+	if ( times <= 0)
+		error("err!! lcd wait LCDC_CPU_CTL bit0, to transmit timeout\n");
+}
+
 static void lcdc_lvds_port_enable(struct lcdc_data *lcdc, bool enable)
 {
 	uint32_t val;
@@ -411,7 +494,11 @@ static void lcdc_display_init_lcdc(struct lcdc_data *lcdc)
 	struct owl_videomode *mode = &lcdc->ctrl->panel->current_mode;
 
 	debug("%s\n", __func__);
+		
+	if (lcdc->configs.port_type == LCD_PORT_TYPE_CPU)
+		lcdc_set_cpu_format(lcdc);
 
+  	lcdc_set_interface_type(lcdc, lcdc->configs.port_type);
 	lcdc_set_size(lcdc, mode->xres, mode->yres);
 	lcdc_set_mode(lcdc, mode->hbp, mode->hfp, mode->hsw,
 		      mode->vbp, mode->vfp, mode->vsw);
@@ -435,9 +522,7 @@ static int owl_lcdc_enable(struct owl_display_ctrl *ctrl)
 	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
 
 	debug("%s\n", __func__);
-
-	lcdc_clk_enable(lcdc);
-
+			
 	lcdc_display_init_lcdc(lcdc);
 
 	if (lcdc->configs.port_type == LCD_PORT_TYPE_LVDS)
@@ -462,9 +547,90 @@ static void owl_lcdc_disable(struct owl_display_ctrl *ctrl)
 	lcdc_clk_disable(lcdc);
 }
 
+int owl_lcdc_power_on(struct owl_display_ctrl *ctrl)
+{
+	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
+
+	debug("%s, ... ...\n", __func__);
+
+	lcdc_clk_enable(lcdc);
+	
+	return 0;
+}
+
+int owl_lcdc_power_off(struct owl_display_ctrl *ctrl)
+{
+	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
+
+	return 0;
+}
+
+int owl_lcdc_aux_read(struct owl_display_ctrl *ctrl, char *buf, int count)
+{
+	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
+
+	return 0;
+}
+
+/*
+ * command buffer format:
+ * 	buffer 3 ~ (MIPI_MAX_PARS - 1) ---> parameters
+ * 	buffer 2---> address
+ * 	buffer 1---> number of parameters
+ * 	buffer 0---> cmd delay
+ *
+ */
+int owl_lcdc_aux_write(struct owl_display_ctrl *ctrl, const char *buf, int count)
+{
+	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
+	int i;
+	uint32_t parameters_num, address, cmd_delay;
+	uint8_t *buffer = buf;
+
+	if (buffer != NULL && count > 0) {
+		cmd_delay = buffer[0];
+		parameters_num = buffer[1];
+		address = buffer[2];
+						
+		debug("%s, delay %d, parameters_num %d, address 0x%x\n", __func__,
+				cmd_delay, parameters_num, address);
+		lcd_send_cmd(lcdc, 0, address);
+
+		for (i = 0; i < parameters_num; i++)
+			lcd_send_cmd(lcdc, 1, buffer[3 + i]);
+		
+		if (cmd_delay > 0)
+			mdelay(cmd_delay);
+	}
+
+	return 0;
+}
+
+int owl_lcdc_refresh_frame(struct owl_display_ctrl *ctrl)
+{
+	struct lcdc_data *lcdc = owl_ctrl_get_drvdata(ctrl);
+	
+	debug("%s\n", __func__);
+
+	if (lcdc->configs.port_type != LCD_PORT_TYPE_CPU)
+		return 0;
+
+	lcdc_cpu_port_refresh_frame(lcdc);
+
+	return 0;
+}
+
 static struct owl_display_ctrl_ops owl_lcd_ctrl_ops = {
 	.enable = owl_lcdc_enable,
 	.disable = owl_lcdc_disable,
+
+	.power_on = owl_lcdc_power_on,
+	.power_off = owl_lcdc_power_off,
+
+	.aux_read = owl_lcdc_aux_read,
+	.aux_write = owl_lcdc_aux_write,
+
+	.refresh_frame = owl_lcdc_refresh_frame,
 };
 
 static struct owl_display_ctrl owl_lcd_ctrl = {
@@ -478,18 +644,24 @@ int owl_lcdc_init(const void *blob)
 {
 	int ret = 0;
 	int node;
-	int tmp,tmp1,tmp2;
+	uint32_t val;
 
 	struct lcdc_data *lcdc;
-	
+
 	/* DTS match */
 	node = fdt_node_offset_by_compatible(blob, 0, "actions,s900-lcd");
 	if (node < 0) {
 		node = fdt_node_offset_by_compatible(blob, 0,
 							"actions,s700-lcd");
 		if (node < 0) {
-			debug("no match in DTS\n");
-			return 0;
+
+			node = fdt_node_offset_by_compatible(blob,
+							0, "actions,ats3605-lcd");
+
+			if (node < 0) {
+				debug("no match in DTS\n");
+				return 0;
+			}
 		}
 	}
 	debug("%s\n", __func__);
@@ -506,15 +678,17 @@ int owl_lcdc_init(const void *blob)
 	ret = lcdc_parse_config(blob, node, lcdc);
 	if (ret < 0)
 		goto err_parse_config;
+
 	if (lcdc->configs.port_type == LCD_PORT_TYPE_LVDS){
 		pinmux_select(PERIPH_ID_LVDS, 0);
 	} else if (lcdc->configs.port_type == LCD_PORT_TYPE_RGB) {
 		pinmux_select(PERIPH_ID_LCD, 0);
+	} else if (lcdc->configs.port_type == LCD_PORT_TYPE_CPU){
+		pinmux_select(PERIPH_ID_LCD_CPU, 0);
 	} else {
 		error("Unsupported port type\n");
 		return -1;
 	}
-
 
 
 	lcdc->ctrl = &owl_lcd_ctrl;

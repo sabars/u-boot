@@ -226,13 +226,13 @@ extern int LDL_DeviceOpReadSectors(unsigned int start,
 			unsigned int nsector, void *buf, int diskNo);
 extern int LDL_DeviceOpWriteSectors(unsigned int start,
 			unsigned int nsector, void *buf, int diskNo);
-//extern ulong mmc_bread(int dev_num, lbaint_t start,
-//			lbaint_t blkcnt, void *dst);
-//extern ulong mmc_bwrite(int dev_num, lbaint_t start,
-//			lbaint_t blkcnt, const void *src);
+extern ulong mmc_bread(int dev_num, lbaint_t start,
+			lbaint_t blkcnt, void *dst);
+extern ulong mmc_bwrite(int dev_num, lbaint_t start,
+			lbaint_t blkcnt, const void *src);
 
 #ifdef CONFIG_OWL_NOR
-static struct spi_flash *flash = NULL;
+extern struct spi_flash *flash;
 static uint64_t misc_offset = 0;
 static uint64_t misc_size = 0;
 
@@ -255,14 +255,11 @@ int parse_misc_partition(uint64_t *offset, uint64_t *size)
 int owl_nor_flash_probe()
 {
     if (flash == NULL) {
-        flash = spi_flash_probe(0, 0, 250000, (0x2|0x1));
-	    if (!flash) {
-	    	printf("SPI probe failed.\n");
-	    	return -1;
-	    }
-        if (parse_misc_partition(&misc_offset, &misc_size) != 0)
-            printf("get misc_offset & misc_info faild!\n");
+        printf("SPI probe failed.\n");
+        return -1;
     }
+    if (parse_misc_partition(&misc_offset, &misc_size) != 0)
+        printf("get misc_offset & misc_info faild!\n");
 
     return 0;
 }
@@ -333,10 +330,10 @@ static int blk_read(void *buf, unsigned int start, unsigned int blkcnt)
 		ret = LDL_DeviceOpReadSectors(start, blkcnt, buf, 0);
 #endif
 	} else {
-//		if (strcmp(boot_dev, "mmc") == 0)
-//			ret = mmc_bread(1, start, blkcnt, buf);
-//		else
-//			ret = -1;
+		if (strcmp(boot_dev, "mmc") == 0)
+			ret = mmc_bread(1, start, blkcnt, buf);
+		else
+			ret = -1;
         if (strcmp(boot_dev, "nor") == 0) {
 #ifdef CONFIG_OWL_NOR
             ret = owl_nor_block_read(start, blkcnt, buf);
@@ -360,10 +357,10 @@ static int blk_write(void *buf, unsigned int start, unsigned int blkcnt)
 		ret = LDL_DeviceOpWriteSectors(start, blkcnt, buf, 0);
 #endif
 	} else {
-//		if (strcmp(boot_dev, "mmc") == 0)
-//			ret = mmc_bwrite(1, start, blkcnt, buf);
-//		else
-//			ret = -1;
+		if (strcmp(boot_dev, "mmc") == 0)
+			ret = mmc_bwrite(1, start, blkcnt, buf);
+		else
+			ret = -1;
         if (strcmp(boot_dev, "nor") == 0) {
 #ifdef CONFIG_OWL_NOR
             ret = owl_nor_block_write(start, blkcnt, buf);

@@ -153,6 +153,8 @@ static void __owl_fb_init(struct owl_fb *fb, bool is_primary)
 	owl_de_video_set_info(video, &v_info);
 }
 
+extern int ml_id_for_scaler0;
+extern int ml_id_for_scaler1;
 static int owl_fb_init(struct owl_fb *fb)
 {
 	debug("%s\n", __func__);
@@ -174,7 +176,17 @@ static int owl_fb_init(struct owl_fb *fb)
 		return -EINVAL;
 	}
 
+
+#if defined(CONFIG_VIDEO_OWL_DE_ATS3605)
+	if (owl_panel_get_type(fb->panel) == OWL_DISPLAY_TYPE_HDMI)
+		fb->video = owl_de_video_get_by_id(0);
+	else
+		fb->video = owl_de_video_get_by_id(1);
+#elif defined(CONFIG_VIDEO_OWL_DE_S700)
+	fb->video = owl_de_video_get_by_id(ml_id_for_scaler0);
+#else
 	fb->video = owl_de_video_get_by_id(0);
+#endif
 	if (fb->video == NULL) {
 		error("can not get de video for primary panel\n");
 		return -EINVAL;
@@ -186,10 +198,9 @@ static int owl_fb_init(struct owl_fb *fb)
 	 * second panel
 	 */
 	fb->second_panel = owl_panel_get_second_panel();
-	fb->second_path
-		= owl_de_path_get_by_type(owl_panel_get_type(fb->second_panel));
+	fb->second_path = owl_de_path_get_by_type(owl_panel_get_type(fb->second_panel));
 #if defined(CONFIG_VIDEO_OWL_DE_S700) && !defined(CONFIG_VIDEO_OWL_DE_S700_OTT)
-	fb->second_video = owl_de_video_get_by_id(3);
+	fb->second_video = owl_de_video_get_by_id(ml_id_for_scaler1);
 #else
 	fb->second_video = owl_de_video_get_by_id(1);
 #endif
@@ -227,7 +238,14 @@ void video_display_backlight_on(void)
 	printf("dispaly panel backlight on\n");
 
 	/*
-	 * owl backlight must be on after drawing loge,
+	 * Be carefull.
+	 * cpu port panel just has one time to refresh frame,
+	 * must be called after logo download is complete. TODO
+	 * */
+	owl_panel_refresh_frame(g_owl_fb.panel);
+
+	/*
+	 * owl backlight must be on after logo download is complete,
 	 * or panel will splash TODO
 	 * */
 	owl_pwm_bl_init(gd->fdt_blob);

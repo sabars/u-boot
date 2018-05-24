@@ -36,13 +36,29 @@ struct owl_boot_param {
 	uint32_t serial_no_lo;
 	uint32_t serial_no_hi;
 } ;
+struct owl_boot_param gboot_param;
+
+static void dump_mem1(unsigned char * buf, int size )
+{
+    int i;
+    for (i = 0; i < size; i++ )
+    {
+        printf("%02x ",*(buf + i));
+        if (i % 16 == 15)
+        {
+            printf("\n");
+        }
+    }
+}
+
+void ats3605_bootpara_first_init(void)
+{
+	memcpy(&gboot_param, (void *)BOOT_PARAM_LOAD_ADDR, sizeof(gboot_param));
+}
 
 #ifdef CONFIG_CHECK_UPDATE
 
-
-
 const static char *ota_path = "update.zip";
-const static char *ota_fin_flag ="ota_fin.txt";
 const static char *env_addr[3] = {"kernel_addr_r", "fdt_addr_r",  "ramdisk_addr_r"};
 const char *boot_fname[3]= {"uImage",  "kernel.dtb", "ota_initrafms.img"};
 
@@ -101,32 +117,6 @@ static unsigned int get_env_addr(const char * env_addr)
 	return addr;
 }
 
-static int check_ota_update(void)
-{
-#if 0
-	unsigned int   addr;
-	loff_t size , len;
-	int ret;
-	char *pbuf, seril_no[20];
-
-	fs_set_blk_dev("mmc", "0", FS_TYPE_FAT);
-	if (fs_size(ota_fin_flag, &size) < 0)
-		return  1;
-	addr = get_env_addr(env_addr[0]);
-	fs_set_blk_dev("mmc", "0", FS_TYPE_FAT);
-	ret =  fs_read(ota_fin_flag , addr,  0 ,  size, &len);
-	if ( ret < 0 )
-		return 1;
-	pbuf = (char *)addr;
-	pbuf[size] = 0;
-	ats3605_get_serial(seril_no, 19);
-	printf("ota check, rlen=0x%llx: %s, %s\n", len, seril_no, pbuf);
-	if (strstr(pbuf, seril_no)  !=  NULL )
-		return 0;
-	return 1;
-#endif
-	return 1;
-}
 
 static unsigned int ota_uppack(const char *image_name, const char *env_addr)
 {
@@ -168,18 +158,7 @@ static unsigned int ota_uppack(const char *image_name, const char *env_addr)
 	return 0;
 
 }
-static void dump_mem(unsigned char * buf, int size )
-{
-    int i;
-    for (i = 0; i < size; i++ )
-    {
-        printf("%02x ",*(buf + i));
-        if (i % 16 == 15)
-        {
-            printf("\n");
-        }
-    }
-}
+
 static int ota_read_image(void)
 {
 
@@ -201,7 +180,7 @@ static int ota_read_image(void)
 	ck =  dwchecksum((unsigned int *)(&ota_head), 0, 0x800-4);
 	if (ota_head.checksum != ck){
 		printf("ota head checksum err: ck=0x%x, sck=0x%x \n", ck, ota_head.checksum);
-		dump_mem((unsigned char *)(&ota_head),  0x800);
+		dump_mem1((unsigned char *)(&ota_head),  0x800);
 		//return -1;
 	}
 	for (i = 0; i < 3; i++) {
@@ -235,16 +214,56 @@ int check_app_ota_flag(void)
 		printf("update reboot, not check update package\n");
 		return -1;
 	}
-
 }
 
-int check_ota_package(void)
+
+#ifdef  CONFIG_OTA_CHECK_VER
+
+#define OTA_FLAG_NAME	 "OTA_FLG"
+extern int read_mi_item(char *name, void *buf, unsigned int count);
+extern int write_mi_item(char *name, void *buf, unsigned int count);
+/*check ota version flag, ota app set flag, uboot check*/
+int check_ota_ver_flag(void)
+{
+	char buf[2];
+	int str_len;
+	int ret = 0;
+	str_len = read_mi_item(OTA_FLAG_NAME, buf, 1);
+	if (str_len != 1) {
+		printf("read OTA_FLAG err, ret=%d\n", str_len);
+	} else {
+		printf("read OTA_FLAG val=0x%x\n", buf[0]);
+		if (buf[0] == '1')
+			ret = 1;
+	}
+	return ret;
+}
+void clear_ota_ver_flag(void)
+{
+	char buf[2];
+	int ret;
+	buf[0] = '0';
+	ret = write_mi_item(OTA_FLAG_NAME, buf, 1);
+	if(ret < 0 )
+		printf("clear_ota_ver_flag:failret=%d\n", ret);
+	else
+		printf("clear_ota_ver_flag ok\n");
+}
+#endif  /* end  #ifdef  CONFIG_OTA_CHECK_VER*/
+
+int check_ota_package_base(void)
 {
 	loff_t size = 0;
-	int ota_index;
+	int ota_index = 0;
+#ifdef CONFIG_OTA_CHECK_VER
+	if ( !check_ota_ver_flag() )
+		return 1;
+#else
 	ota_index = check_app_ota_flag();
 	if (ota_index < 0)
 		return -1;
+#endif
+
 #ifdef SLOT0
 	if (!owl_mmc_check_init(SLOT0) )
 		return -1;
@@ -260,8 +279,6 @@ int check_ota_package(void)
 	if (size < 1024 * 2)
 		return -1;
 	printf("file  size = 0x%llx\n", size);
-	if (check_ota_update() == 0)
-		return -1;
 
 	if ( ota_read_image() < 0 ) {
 		printf("ota package err\n");
@@ -275,8 +292,16 @@ int check_ota_package(void)
 
 }
 
-#endif
-
+void check_ota_package(void)
+{
+	if(check_ota_package_base() != 0 ) {
+		#ifdef  CONFIG_OTA_CHECK_VER
+		clear_ota_ver_flag();
+		#endif
+		return;
+	}
+}
+#endif /*end #ifdef CONFIG_CHECK_UPDATE*/
 
 void ats3605_bootpara_init(void)
 {
@@ -284,9 +309,10 @@ void ats3605_bootpara_init(void)
 	char new_env[CONFIG_SYS_BARGSIZE];
 	char str_dvfs[32];
 	struct owl_boot_param *param;
-	param = (struct  owl_boot_param *)BOOT_PARAM_LOAD_ADDR;
+	param = &gboot_param;
 	if(param->magic != OWL_BOOTPARAM_MAGIC) {
 		printf("bootpara magic err:0x%x\n", param->magic);
+		dump_mem1((unsigned char *)BOOT_PARAM_LOAD_ADDR, 0x40);
 		return;
 	}
 	//printf("bootpara dvfs:0x%x\n", param->dvfs);

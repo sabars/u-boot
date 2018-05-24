@@ -515,6 +515,9 @@ int owl_board_late_init(void)
 
 int owl_board_first_init(void)
 {
+#ifdef CONFIG_ATS3605_BOOTPARA
+	ats3605_bootpara_first_init();
+#endif
 #ifdef CONFIG_BOOTDEV_AUTO
 	owl_bootdev_init();
 #endif

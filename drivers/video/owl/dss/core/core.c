@@ -36,6 +36,9 @@ void owl_dss_init(const void *blob)
 #ifdef CONFIG_VIDEO_OWL_DE_S700
 	owl_de_s700_init(blob);
 #endif
+#ifdef CONFIG_VIDEO_OWL_DE_ATS3605
+	owl_de_ats3605_init(blob);
+#endif
 
 	/*
 	 * controllers init

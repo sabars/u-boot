@@ -1,0 +1,320 @@
+/*
+ * Copyright (c) 2015 Actions Semi Co., Ltd.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+#include "ats3605.dtsi"
+
+/ {
+	model = "ats3605 zxf86 nand";
+	compatible ="actions,ats3605";
+
+	chosen {
+		stdout-path = &serial5;
+	};
+
+
+	spi0: spi@b0300000 {
+		status = "okay";
+		m25p80@0 {
+            compatible = "m25p80";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x0>;
+            spi-max-frequency = <60000000>;
+            uboot-partition = <0x0 0xe0000>;
+            misc-partition = <0xe0000 0x20000>;
+            system-partition = <0x100000 0xf00000>;
+        };
+	};
+
+	hard_powerkey {
+		compatible = "actions,hard_powerkey";
+		cpu_gpios = <&gpiob 3 1>;/*hard_powerkey, (0: high  , 1: low )*/
+		//pmu_sgpio = <4 1> ;  /*4 SGPIO num,    (0: high, 1: low)*/
+	};
+	i2c2: i2c@b0188000{
+		#address-cells = <1>;
+		#size-cells = <1>;
+		atc2603c_pmic {
+			compatible = "actions,atc2603c";
+			reg = <0x65 1>;
+
+			atc2603c_pstore {
+				compatible = "actions,atc2603c-pstore";
+			};
+
+			voltage-regulators {
+				dcdc1: dcdc1 {
+					regulator-name = "dcdc1";
+					regulator-min-microvolt = <1150000>;
+					regulator-max-microvolt = <1150000>;
+					regulator-always-on;
+				};
+
+				dcdc3: dcdc3 {
+					regulator-name = "dcdc3";
+					regulator-min-microvolt = <3100000>;
+					regulator-max-microvolt = <3100000>;
+					regulator-always-on;
+				};
+
+			};
+
+			atc2603c-battery{
+				compatible = "actions,atc2603c-battery";
+				capacity = <4000>;/*unit:mAh*/
+				shutdown_current = <50>;/*unit:ua*/
+			};
+			atc2603c-charger{
+				compatible = "actions,atc2603c-charger";
+				rsense = <20>;/*unit:mohm*/
+				support_adaptor_type = <3>; /*1: DCIN  2: USB  3:DCIN+USB*/
+				usb_pc_ctl_mode = <1>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
+				//wall_switch = <&gpioa 25 0>;/*GPIOA25,0: high, 1: low*/
+			};
+		};
+	};
+
+
+	usb2h0: usb@b0240000 {
+		id = <0>;
+		usbecs = <0xb0158090>;
+		vbus-gpio = <&gpiob 9 0>;
+		status = "disabled";
+	};
+
+	usb2h1: usb@b0250000 {
+		id = <1>;
+		usbecs = <0xb0158094>;
+		status = "okay";
+	};
+
+	backlight {
+		compatible = "actions,ats3605-pwm-backlight";
+
+		/* GPIOD28, active high */
+		en-gpios = <&gpioa 23 1>;
+
+		/*1.pwm num; 2. period in ns; */
+		/*3.plarity, 0: high active, 1: low active*/
+		/* pwms = <&pwm 0 50000 1>; */
+
+		total_steps = <1024>;
+		min_brightness = <100>;
+		max_brightness = <1000>;
+		dft_brightness = <500>;
+
+		delay_bf_pwm = <0>; /*in ms*/
+		delay_af_pwm = <20>; /*in ms*/
+	};
+
+	lcd@b02a0000 {
+		panel_configs = <&config0>;
+
+		/* 1280x800p60 */
+		config0: lcd_configs {
+			port_type = <1>;	/* 0, RGB; 1, CPU; 2, LVDS; 3, EDP */
+
+			vsync_inversion = <0>;
+			hsync_inversion = <0>;
+			dclk_inversion = <0>;
+			lde_inversion = <0>;
+		
+			/* cpu port properties */
+			cpu_format = <2>;		/* 0: 16 bit RGB 565 1 transfer;
+							 * 1: 18 bit RGB 666 1 transfer
+							 * 2:  8 bit RGB 565 2 transfer
+							 * 3:  9 bit RGB 666 2 transfer
+							 * 4:  8 bit RGB 888 3 transfer
+							 * 5:  6 bit RGB 666 3 transfer
+							 */
+
+			/* lvds config */
+			lvds_format = <1>;      /* 0: 18-bit; 1: 24-bit */
+			lvds_channel = <0>;     /* 0: single channel; 1: dual channel */
+			lvds_bit_mapping = <0>; /* 0: NS Mode; 1: JEIDA Mode */
+			lvds_ch_swap = <0>;     /* 0: No Swap; 1: Odd/Even Swap */
+			lvds_mirror = <0>;      /* 0: normal; 1: mirror */
+
+			pclk_parent = <0>;	/* 0, DISPLAY PLL; 1, NAND PLL */
+			pclk_rate = <15000000>;/* 10MHz */
+			
+		};
+		/* lcd panel */
+		panel@glp {
+			compatible = "actions,panel-glp";
+
+			/* panel's fixed info */
+			width_mm = <197>;
+			height_mm = <147>;
+			bpp = <16>;
+
+			is_primary = <1>;
+
+			/* operation delay in ms */
+			power_on_delay = <0>;
+			power_off_delay = <0>;
+			enable_delay = <0>;
+			disable_delay = <0>;
+
+			power-gpio = <&gpiob 21 0>;/* high active */
+			reset-gpio = <&gpioc 3 1>;/* low active */
+
+			/* screen init command info */
+			glp_init_cmd-0 = <&scmd0>;
+			glp_init_cmd-1 = <&scmd1>;
+			glp_init_cmd-2 = <&scmd2>;
+			glp_init_cmd-3 = <&scmd3>;
+			glp_init_cmd-4 = <&scmd4>;
+			glp_init_cmd-5 = <&scmd5>;
+			glp_init_cmd-6 = <&scmd6>;
+			glp_init_cmd-7 = <&scmd7>;
+			glp_init_cmd-8 = <&scmd8>;
+			glp_init_cmd-9 = <&scmd9>;
+			glp_init_cmd-10 = <&scmd10>;
+			glp_init_cmd-11 = <&scmd11>;
+			glp_init_cmd-12 = <&scmd12>;
+			glp_init_cmd-13 = <&scmd13>;
+			glp_init_cmd-14 = <&scmd14>;
+			glp_init_cmd-15 = <&scmd15>;
+			//glp_init_cmd-16 = <&scmd16>;
+			//glp_init_cmd-17 = <&scmd17>;
+
+			videomode-0 = <&mode0>;
+
+			/* 800x1280p60 */
+			mode0: videomode {
+				refresh_rate = <60>;
+
+				xres = <240>;
+				yres = <320>;
+				/*
+				 * pclk_rate = 66M
+				 * pixel_clock = picoseconds / pclk_rate
+				 */
+				pixel_clock = <15152>;
+
+				hsw = <12>;
+				hbp = <20>;
+				hfp = <40>;
+
+				vsw = <2>;
+				vbp = <10>;
+				vfp = <33>;
+
+				/* 0: FB_VMODE_NONINTERLACED, 1:FB_VMODE_INTERLACED */
+				vmode = <0>;
+			};
+			scmd0: cmd0 {
+	                        address = <0x11>;
+				delay = <120>;
+			};
+
+
+			scmd1: cmd1 {
+	                        address = <0x36>;
+	                        parameters = [00];
+				delay = <0>;
+			};
+			scmd2: cmd2 {
+	                        address = <0x3a>;
+	                        parameters = [55];
+				delay = <0>;
+			};
+			scmd3: cmd3 {
+	                        address = <0xb2>;
+	                        parameters = [0c 0c 00 33 33];
+				delay = <0>;
+			};
+			scmd4: cmd4 {
+	                        address = <0xb7>;
+	                        parameters = [35];
+				delay = <0>;
+			};
+			scmd5: cmd5 {
+	                        address = <0xbb>;
+	                        parameters = [19];
+				delay = <0>;
+			};
+			scmd6: cmd6 {
+	                        address = <0xc0>;
+	                        parameters = [2c];
+				delay = <0>;
+			};
+			scmd7: cmd7 {
+	                        address = <0xc2>;
+	                        parameters = [01];
+				delay = <0>;
+			};
+			scmd8: cmd8 {
+	                        address = <0xc3>;
+	                        parameters = [12];
+				delay = <0>;
+			};
+			scmd9: cmd9 {
+	                        address = <0xc4>;
+	                        parameters = [20];
+				delay = <0>;
+			};
+			scmd10: cmd10 {
+	                        address = <0xc6>;
+	                        parameters = [0f];
+				delay = <0>;
+			};
+			scmd11: cmd11 {
+	                        address = <0xd0>;
+	                        parameters = [a4 a1];
+				delay = <0>;
+			};
+			scmd12: cmd12 {
+	                        address = <0xe0>;
+	                        parameters = [d0
+	                        04
+	                        0d
+	                        11
+	                        13
+	                        2b
+	                        3f
+	                        54
+	                        4c
+	                        18
+	                        0d
+	                        0b
+	                        1f
+	                        23];
+				delay = <0>;
+			};
+			scmd13: cmd13 {
+	                        address = <0xe1>;
+	                        parameters = [d0
+	                        04
+	                        0c
+	                        11
+	                        13
+	                        2c
+	                        3f
+	                        44
+	                        51
+	                        2f
+	                        1f
+	                        1f
+	                        20
+	                        23];
+				delay = <0>;
+			};
+			scmd14: cmd14 {
+	                        address = <0x29>;
+				delay = <0>;
+			};
+			scmd15: cmd15 {
+	                        address = <0x2c>;
+				delay = <0>;
+			};
+		};
+	};
+
+};

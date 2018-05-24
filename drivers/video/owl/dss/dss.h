@@ -49,6 +49,7 @@ enum owl_dss_state {
 struct owl_de_device;
 
 enum owl_de_hw_id {
+	DE_HW_ID_ATS3605,
 	DE_HW_ID_ATM7059TC,
 	DE_HW_ID_ATM7059,
 	DE_HW_ID_S900,
@@ -153,6 +154,12 @@ struct owl_display_ctrl_ops {
 	int (*aux_read)(struct owl_display_ctrl *ctrl, char *buf, int count);
 	int (*aux_write)(struct owl_display_ctrl *ctrl, const char *buf,
 			int count);
+	/* 
+	 * optional, Some display controllers do not generate vsync signal, 
+	 * so we need to manually refresh display data by this callback,
+	 * such as CPU(8080) interface type.
+	 * */
+	int (*refresh_frame)(struct owl_display_ctrl *ctrl);
 };
 
 struct owl_display_ctrl {
@@ -279,6 +286,7 @@ struct owl_panel *owl_panel_get_by_name(const char *name);
 struct owl_panel *owl_panel_get_by_type(enum owl_display_type type);
 
 int owl_panel_get_preline_num(struct owl_panel *panel);
+int owl_panel_refresh_frame(struct owl_panel *panel);
 
 void owl_panel_get_scale_factor(struct owl_panel *panel,
 				uint16_t *x, uint16_t *y);

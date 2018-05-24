@@ -66,6 +66,26 @@
 /*3= */
 #define MFP0_18_16_F(x) (x<<16)
 
+/*
+ * lcd0
+ * */
+#define MFP0_31_29_F(x) (x<<29) /* LCD0_DCLK0, LCD0_HSYNC0 */
+#define MFP0_28_26_F(x) (x<<26) /* LCD0_VSYNC0 */
+#define MFP0_25_23_F(x) (x<<23) /* LCD0_LDE0 */
+#define MFP0_22_20_F(x) (x<<20) /* LCD0_D23 LCD0_D22 LCD0_D21 */
+#define MFP0_19_17_F(x) (x<<17) /* LCD0_D20 */
+#define MFP0_16_14_F(x) (x<<14) /* LCD0_D19 LCD0_D15 */
+
+
+#define MFP1_22_21_F(x) (x<<21) /* LCD0_D[7:3] LCD0_D[14:10]
+				 * LCD0_D[23:15] LCD0_DCLK0 LCD0_HSYNC0 LCD0_VSYNC0 LCD0_LDE0
+				 * */
+#define MFP1_16_15_F(x) (x<<15) /* LCD0_D17 */
+#define MFP1_14_13_F(x) (x<<13) /* LCD0_D16 */
+#define MFP1_12_11_F(x) (x<<11) /* LCD0_D9 */
+#define MFP1_10_F(x) 	(x<<10) /* LCD0_D8_D[1:0] */
+#define MFP1_9_F(x) 	(x<<9)  /* LCD0_D18_D2 */
+
 /*0= */
 /*1= */
 /*2= */
@@ -167,10 +187,65 @@ static const struct device_mfp_config ats3605_spi0_cfg = {
 	},
 };
 
+static const struct device_mfp_config ats3605_lcd_cfg = {
+	.periph_id = PERIPH_ID_LCD,
+	.mfp_cfg = {
+		{
+			.mfp = 0,
+			.reg_cfg = {
+				{MFP_CTL0, MFP0_31_29_F(7), MFP0_31_29_F(1)},
+				{MFP_CTL0, MFP0_28_26_F(7), MFP0_28_26_F(1)},
+				{MFP_CTL0, MFP0_25_23_F(7), MFP0_25_23_F(1)},
+				{MFP_CTL0, MFP0_22_20_F(7), MFP0_22_20_F(1)},
+				{MFP_CTL0, MFP0_19_17_F(7), MFP0_19_17_F(1)},
+				{MFP_CTL0, MFP0_16_14_F(7), MFP0_16_14_F(1)},
+
+				{MFP_CTL1, MFP1_22_21_F(3), MFP1_22_21_F(3)},
+				{MFP_CTL1, MFP1_16_15_F(3), MFP1_16_15_F(0)},
+				{MFP_CTL1, MFP1_14_13_F(3), MFP1_14_13_F(0)},
+				{MFP_CTL1, MFP1_12_11_F(3), MFP1_12_11_F(0)},
+				{MFP_CTL1, MFP1_10_F(1), MFP1_10_F(0)},
+				{MFP_CTL1, MFP1_9_F(1), MFP1_9_F(0)},
+			},
+		},
+	},
+};
+
+/* for 8bit lcd cpu */
+static const struct device_mfp_config ats3605_lcd_cpu_cfg = {
+	.periph_id = PERIPH_ID_LCD_CPU,
+	.mfp_cfg = {
+		{
+			.mfp = 0,
+			.reg_cfg = {
+				{MFP_CTL0, MFP0_31_29_F(7), MFP0_31_29_F(1)},
+				{MFP_CTL0, MFP0_28_26_F(7), MFP0_28_26_F(1)},
+
+				{MFP_CTL1, MFP1_22_21_F(3), MFP1_22_21_F(3)},
+			},
+		},
+	},
+};
+
+
+static const struct device_mfp_config ats3605_lvds_cfg = {
+	.periph_id = PERIPH_ID_LVDS,
+	.mfp_cfg = {
+		{
+			.mfp = 0,
+			.reg_cfg = {
+				{MFP_CTL1, MFP1_22_21_F(3), MFP1_22_21_F(0)},
+			},
+		},
+	},
+};
 static const struct device_mfp_config *ats3605_dev_cfg[] = {
 	&ats3605_mmc0_cfg,
 	&ats3605_mmc2_cfg,
 	&ats3605_spi0_cfg,
+	&ats3605_lcd_cfg,
+	&ats3605_lcd_cpu_cfg,
+	&ats3605_lvds_cfg,
 	NULL,
 };
 
