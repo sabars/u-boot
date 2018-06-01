@@ -140,6 +140,12 @@
 		};
 	};
 
+	/* binding scaler to video by id, s700 DE has only two scalers */
+	de@e02e0000 {
+		video_id_for_scaler0 = <1>;
+		video_id_for_scaler1 = <2>;
+	};
+
 	backlight {
 		compatible = "actions,s700-pwm-backlight";
 
