@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "s700.dtsi"
-/* #include "s700_panel_rgb_lvds.dtsi" */
+#include "s700_panel_rgb_lvds.dtsi" 
 /* #include "s700_panel_mipi.dtsi" */
 / {
 	model = "s700 upgrade";
@@ -84,54 +84,53 @@
 					regulator-always-on;
 				};
 
-				ldo1: ldo1 {
+				ldo1: ldo1{
 					regulator-name = "ldo1";
 					regulator-min-microvolt  = <2700000>;
 					regulator-max-microvolt = <2700000>;
 					regulator-always-on;
 				};
 
-				ldo7: ldo7 {
-					regulator-name = "ldo7";
-					regulator-min-microvolt  = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-always-on;
-				};
-			};
 
-			atc2603c_irkey {
-				compatible = "actions,atc2603c-ir";
-				config {
-					protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
-					customer_code = <0x0dff40>;
-					wk_code = <0x4d>;
-					keymapsize = <45>;
-					ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
-					key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
-				};
-				config-1 {
-					protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
-					customer_code = <0x0dff40>;
-					wk_code = <0x4d>;
-					keymapsize = <45>;
-					ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
-					key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
-				};
+			ldo7: ldo7{
+				regulator-name = "ldo7";
+				regulator-min-microvolt  = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
+		};
+		atc2603c_irkey {
+			compatible = "actions,atc2603c-ir";
+			config {
+				protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
+				customer_code = <0x0dff40>;
+				wk_code = <0x4d>;
+				keymapsize = <45>;
+				ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
+				key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
+			};
+			config-1 {
+				protocol = <1>; /* 0:9012 1:NEC8 2:RC5 */
+				customer_code = <0x0dff40>;
+				wk_code = <0x4d>;
+				keymapsize = <45>;
+				ir_code  =<0x0 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F  0x10 0x11  0x12 0x13 0x14 0x15  0x16 0x17 0x18 0x19 0x1A  0x1B 0x1C  0x1D 0x1E 0x1F 0x40 0x41 0x42  0x43  0x44 0x45  0x46 0x47 0x4D  0x53 0x54  0x57 0x5B>;
+				key_code =<11   2   3    4    5    6    7    8    9 	 10 	 100    103  126   353   108   52    105  106    14   60   63  115    80   61   65   76   172   78   114   97   79   75   77  81   158    113  65   139   64   71   116   72   175   82   73>;
+			};
+		};
+		atc2603c-battery{
+			compatible = "actions,atc2603c-battery";
+			capacity = <5300>;/*unit:mAh*/
+			shutdown_current = <50>;/*unit:ua*/
+		};
+		atc2603c-charger{
+			compatible = "actions,atc2603c-charger";
+			rsense = <20>;/*unit:mohm*/
+			support_adaptor_type = <3>; /*1: DCIN  2: USB  3:DCIN+USB*/
+			usb_pc_ctl_mode = <2>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
+			wall_switch = <&gpioa 25 0>;/*GPIOA25,0: high, 1: low*/
+		};
 
-			atc2603c-battery {
-				compatible = "actions,atc2603c-battery";
-				capacity = <5300>;/*unit:mAh*/
-				shutdown_current = <50>;/*unit:ua*/
-			};
-
-			atc2603c-charger {
-				compatible = "actions,atc2603c-charger";
-				rsense = <20>;/*unit:mohm*/
-				support_adaptor_type = <3>; /*1: DCIN  2: USB  3:DCIN+USB*/
-				usb_pc_ctl_mode = <2>; /*0:disable vbus ctl;1:current limited;2:voltage limited*/
-				wall_switch = <&gpioa 25 0>;/*GPIOA25,0: high, 1: low*/
-			};
 		};
 	};
 
@@ -172,9 +171,9 @@
 	
 		panel@ghp {
 			compatible = "actions,panel-ghp";
-
-			is_primary = <1>;
-
+	
+			is_primary = <0>;
+        
 			videomode-0 = <&default_mode>;
         
 			/* default mode used when EDID read error */
