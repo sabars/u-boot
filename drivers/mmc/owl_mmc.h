@@ -4,7 +4,7 @@
 #if defined(CONFIG_S900)
 #include <owl_mmc_s900.h>
 #elif defined(CONFIG_S700)
-#include <owl_mmc_s700.h>
+#include "owl_mmc_s700.h"
 #elif defined(CONFIG_ATS3605)
 #include <owl_mmc_ats3605.h>
 #else
