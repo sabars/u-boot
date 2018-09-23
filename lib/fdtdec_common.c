@@ -13,7 +13,7 @@
 #include <libfdt.h>
 #include <fdtdec.h>
 #else
-#include "libfdt.h"
+#include "../include/libfdt.h"
 #include "fdt_support.h"
 
 #define debug(...)

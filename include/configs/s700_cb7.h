@@ -144,7 +144,7 @@
 /*irkey detect uhost ,if the uhost had update.zip , enter recovery update*/
 #define IR_KEY_UDISK_DETECT         KEY_BACK
 #define IR_KEY_ENTER_RECOVERY     KEY_SELECT
-/* /#define CONFIG_IR_CONTROL_RECOVERY */
+/* #define CONFIG_IR_CONTROL_RECOVERY */
 
 
 
